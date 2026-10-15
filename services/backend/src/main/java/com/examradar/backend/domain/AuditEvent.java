@@ -1,6 +1,8 @@
 package com.examradar.backend.domain;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -24,10 +26,12 @@ public class AuditEvent {
     @Column(name = "entity_id", nullable = false, length = 128)
     private String entityId;
 
-    @Column(name = "old_values", columnDefinition = "TEXT")
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "old_values", columnDefinition = "jsonb")
     private String oldValues;
 
-    @Column(name = "new_values", columnDefinition = "TEXT")
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "new_values", columnDefinition = "jsonb")
     private String newValues;
 
     @Column(name = "ip_address", length = 45)

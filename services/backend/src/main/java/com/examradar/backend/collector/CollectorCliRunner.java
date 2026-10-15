@@ -10,10 +10,13 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.ComponentScan;
 
+import org.springframework.context.annotation.Profile;
+import org.springframework.stereotype.Component;
+
 import java.util.List;
 
-@SpringBootApplication
-@ComponentScan(basePackages = "com.examradar.backend")
+@Component
+@Profile("!test")
 public class CollectorCliRunner implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(CollectorCliRunner.class);
@@ -51,11 +54,19 @@ public class CollectorCliRunner implements CommandLineRunner {
             List<Source> sources = sourceRepository.findByIsEnabledTrue();
             log.info("Running ingestion for all {} enabled sources...", sources.size());
             for (Source s : sources) {
-                ingestionEngine.runIngestionForSource(s.getId());
+                try {
+                    ingestionEngine.runIngestionForSource(s.getId());
+                } catch (Exception e) {
+                    log.error("Failed to ingest source [{}]: {}", s.getId(), e.getMessage());
+                }
             }
         } else {
             log.info("Running ingestion for target source: [{}]", targetSource);
-            ingestionEngine.runIngestionForSource(targetSource);
+            try {
+                ingestionEngine.runIngestionForSource(targetSource);
+            } catch (Exception e) {
+                log.error("Failed to ingest target source [{}]: {}", targetSource, e.getMessage());
+            }
         }
 
         log.info("ExamRadar Ingestion run complete.");

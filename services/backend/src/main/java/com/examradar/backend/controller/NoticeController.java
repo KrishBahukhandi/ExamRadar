@@ -15,6 +15,7 @@ import com.examradar.backend.repository.NoticeRepository;
 import com.examradar.backend.repository.NoticeVersionRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -25,6 +26,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/notices")
 @Tag(name = "Notices", description = "Official recruitment notices, notifications, and version history")
+@Transactional(readOnly = true)
 public class NoticeController {
 
     private final NoticeRepository noticeRepository;

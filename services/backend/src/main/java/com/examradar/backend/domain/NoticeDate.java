@@ -15,7 +15,7 @@ public class NoticeDate {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "notice_id", nullable = false)
     private Notice notice;
 

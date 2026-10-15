@@ -52,6 +52,10 @@ class HomeViewModel(
             _uiState.value = _uiState.value.copy(isLoading = true)
 
             launch {
+                repository.refreshNotices()
+            }
+
+            launch {
                 repository.getSourceFreshness().collectLatest { freshness ->
                     _uiState.value = _uiState.value.copy(freshnessInfo = freshness)
                 }

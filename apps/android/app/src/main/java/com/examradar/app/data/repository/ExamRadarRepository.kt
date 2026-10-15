@@ -46,6 +46,7 @@ interface ExamRadarRepository {
     fun getChecklist(examId: String): Flow<ChecklistModel>
     fun toggleChecklistItem(examId: String, itemKey: String)
     fun getSourceFreshness(): Flow<SourceFreshnessInfo>
+    suspend fun refreshNotices(): Boolean
 }
 
 class ExamRadarRepositoryImpl(
@@ -58,12 +59,20 @@ class ExamRadarRepositoryImpl(
 
     init {
         CoroutineScope(Dispatchers.IO).launch {
+            refreshNotices()
+        }
+    }
+
+    override suspend fun refreshNotices(): Boolean =
+        kotlinx.coroutines.withContext(Dispatchers.IO) {
             val remote = apiClient.fetchNotices()
             if (!remote.isNullOrEmpty()) {
                 liveNotices.value = remote
+                true
+            } else {
+                false
             }
         }
-    }
 
     override fun getUserPreferences(): Flow<UserPreferences> =
         preferencesRepository.userPreferences

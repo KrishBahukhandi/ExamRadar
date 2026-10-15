@@ -39,7 +39,10 @@ fun FreshnessBanner(
             horizontalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
@@ -51,14 +54,18 @@ fun FreshnessBanner(
                     text = freshnessInfo.statusMessage,
                     style = MaterialTheme.typography.bodySmall,
                     color = textColor,
-                    fontSize = 12.sp
+                    fontSize = 12.sp,
+                    maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
             }
+            Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = DateFormatter.formatRelativeTime(freshnessInfo.lastSuccessfulSync),
                 style = MaterialTheme.typography.labelSmall,
                 color = textColor,
-                fontSize = 11.sp
+                fontSize = 11.sp,
+                maxLines = 1
             )
         }
     }

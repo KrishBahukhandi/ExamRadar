@@ -102,11 +102,15 @@ fun CalendarScreen(
                 modifier = Modifier.padding(paddingValues)
             )
         } else {
-            // Group events by Month & Year
-            val monthFormatter = DateTimeFormatter.ofPattern("MMMM yyyy")
-            val groupedEvents = uiState.events.groupBy { it.eventDate.format(monthFormatter) }
+            // Group events by Month & Year - remembered to avoid re-allocation on scroll
+            val groupedEvents = remember(uiState.events) {
+                val monthFormatter = DateTimeFormatter.ofPattern("MMMM yyyy")
+                uiState.events.groupBy { it.eventDate.format(monthFormatter) }
+            }
 
+            val listState = androidx.compose.foundation.lazy.rememberLazyListState()
             LazyColumn(
+                state = listState,
                 modifier = modifier
                     .fillMaxSize()
                     .padding(paddingValues),
@@ -114,7 +118,7 @@ fun CalendarScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 groupedEvents.forEach { (month, events) ->
-                    item {
+                    item(contentType = "month_header") {
                         Text(
                             text = month,
                             style = MaterialTheme.typography.titleMedium,
@@ -124,7 +128,11 @@ fun CalendarScreen(
                         )
                     }
 
-                    items(events, key = { it.id }) { event ->
+                    items(
+                        items = events,
+                        key = { it.id },
+                        contentType = { "calendar_card" }
+                    ) { event ->
                         CalendarEventCard(
                             event = event,
                             onClick = { onNoticeClick(event.noticeId) }
@@ -142,17 +150,17 @@ fun CalendarEventCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val dayFormatter = DateTimeFormatter.ofPattern("dd")
-    val monthShortFormatter = DateTimeFormatter.ofPattern("MMM")
+    val day = remember(event.eventDate) { event.eventDate.format(DateTimeFormatter.ofPattern("dd")) }
+    val monthShort = remember(event.eventDate) { event.eventDate.format(DateTimeFormatter.ofPattern("MMM")) }
 
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .clickable(onClick = onClick),
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
             modifier = Modifier
@@ -173,14 +181,14 @@ fun CalendarEventCard(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = event.eventDate.format(dayFormatter),
+                        text = day,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = if (event.dateType == DateType.APPLICATION_DEADLINE) DeadlineUrgent
                         else MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = event.eventDate.format(monthShortFormatter),
+                        text = monthShort,
                         style = MaterialTheme.typography.labelSmall,
                         color = if (event.dateType == DateType.APPLICATION_DEADLINE) DeadlineUrgent
                         else MaterialTheme.colorScheme.primary

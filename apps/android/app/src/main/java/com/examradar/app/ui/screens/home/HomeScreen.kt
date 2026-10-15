@@ -1,11 +1,11 @@
 package com.examradar.app.ui.screens.home
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Warning
@@ -143,7 +143,9 @@ fun HomeScreen(
         if (uiState.isLoading) {
             LoadingStateView(modifier = Modifier.padding(paddingValues))
         } else {
+            val listState = rememberLazyListState()
             LazyColumn(
+                state = listState,
                 modifier = modifier
                     .fillMaxSize()
                     .padding(paddingValues),
@@ -152,14 +154,14 @@ fun HomeScreen(
             ) {
                 // Source Freshness Banner
                 uiState.freshnessInfo?.let { freshness ->
-                    item {
+                    item(contentType = "banner") {
                         FreshnessBanner(freshnessInfo = freshness)
                     }
                 }
 
                 // Approaching Deadlines Section
                 if (uiState.approachingDeadlines.isNotEmpty()) {
-                    item {
+                    item(contentType = "deadlines") {
                         Column {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -192,7 +194,7 @@ fun HomeScreen(
                 }
 
                 // Category Filter Chips
-                item {
+                item(contentType = "filters") {
                     Column {
                         Text(
                             text = "Latest Official Announcements",
@@ -201,51 +203,63 @@ fun HomeScreen(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
+                        LazyRow(
+                            modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            FilterChip(
-                                selected = uiState.selectedCategoryFilter == null,
-                                onClick = { viewModel.selectCategoryFilter(null) },
-                                label = { Text("All Goals") }
-                            )
-                            FilterChip(
-                                selected = uiState.selectedCategoryFilter == "cat-upsc",
-                                onClick = { viewModel.selectCategoryFilter("cat-upsc") },
-                                label = { Text("UPSC") }
-                            )
-                            FilterChip(
-                                selected = uiState.selectedCategoryFilter == "cat-ssc",
-                                onClick = { viewModel.selectCategoryFilter("cat-ssc") },
-                                label = { Text("SSC") }
-                            )
-                            FilterChip(
-                                selected = uiState.selectedCategoryFilter == "cat-banking",
-                                onClick = { viewModel.selectCategoryFilter("cat-banking") },
-                                label = { Text("Banking") }
-                            )
-                            FilterChip(
-                                selected = uiState.selectedCategoryFilter == "cat-regulatory",
-                                onClick = { viewModel.selectCategoryFilter("cat-regulatory") },
-                                label = { Text("Regulatory") }
-                            )
+                            item {
+                                FilterChip(
+                                    selected = uiState.selectedCategoryFilter == null,
+                                    onClick = { viewModel.selectCategoryFilter(null) },
+                                    label = { Text("All Goals") }
+                                )
+                            }
+                            item {
+                                FilterChip(
+                                    selected = uiState.selectedCategoryFilter == "cat-upsc",
+                                    onClick = { viewModel.selectCategoryFilter("cat-upsc") },
+                                    label = { Text("UPSC") }
+                                )
+                            }
+                            item {
+                                FilterChip(
+                                    selected = uiState.selectedCategoryFilter == "cat-ssc",
+                                    onClick = { viewModel.selectCategoryFilter("cat-ssc") },
+                                    label = { Text("SSC") }
+                                )
+                            }
+                            item {
+                                FilterChip(
+                                    selected = uiState.selectedCategoryFilter == "cat-banking",
+                                    onClick = { viewModel.selectCategoryFilter("cat-banking") },
+                                    label = { Text("Banking") }
+                                )
+                            }
+                            item {
+                                FilterChip(
+                                    selected = uiState.selectedCategoryFilter == "cat-regulatory",
+                                    onClick = { viewModel.selectCategoryFilter("cat-regulatory") },
+                                    label = { Text("Regulatory") }
+                                )
+                            }
                         }
                     }
                 }
 
                 // Main Notices List
                 if (uiState.notices.isEmpty()) {
-                    item {
+                    item(contentType = "empty") {
                         EmptyStateView(
                             title = "No Announcements in Category",
                             message = "There are no current notices for this filter. Check back after official updates."
                         )
                     }
                 } else {
-                    items(uiState.notices, key = { it.id }) { notice ->
+                    items(
+                        items = uiState.notices,
+                        key = { it.id },
+                        contentType = { "notice_item" }
+                    ) { notice ->
                         NoticeCard(
                             notice = notice,
                             onClick = { onNoticeClick(notice.id) }
@@ -254,7 +268,7 @@ fun HomeScreen(
                 }
 
                 // Independence Disclaimer Footer
-                item {
+                item(contentType = "footer") {
                     IndependenceDisclaimerBanner()
                 }
             }

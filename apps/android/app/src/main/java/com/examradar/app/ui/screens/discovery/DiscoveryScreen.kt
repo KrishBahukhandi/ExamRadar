@@ -2,11 +2,11 @@ package com.examradar.app.ui.screens.discovery
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
@@ -137,19 +137,21 @@ fun DiscoveryScreen(
             )
 
             // Category Filter Chips
-            Row(
+            LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                    .padding(vertical = 6.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                FilterChip(
-                    selected = uiState.selectedCategory == null,
-                    onClick = { viewModel.selectCategory(null) },
-                    label = { Text("All Categories") }
-                )
-                uiState.categories.forEach { category ->
+                item {
+                    FilterChip(
+                        selected = uiState.selectedCategory == null,
+                        onClick = { viewModel.selectCategory(null) },
+                        label = { Text("All Categories") }
+                    )
+                }
+                items(uiState.categories, key = { it.id }) { category ->
                     FilterChip(
                         selected = uiState.selectedCategory == category.id,
                         onClick = { viewModel.selectCategory(category.id) },
@@ -168,12 +170,18 @@ fun DiscoveryScreen(
                     message = "No examinations match your search query. Try broadening your terms."
                 )
             } else {
+                val listState = rememberLazyListState()
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(uiState.exams, key = { it.id }) { exam ->
+                    items(
+                        items = uiState.exams,
+                        key = { it.id },
+                        contentType = { "exam_card" }
+                    ) { exam ->
                         ExamDiscoveryCard(
                             exam = exam,
                             onClick = { onExamClick(exam.id) },
@@ -198,13 +206,13 @@ fun ExamDiscoveryCard(
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick),
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier

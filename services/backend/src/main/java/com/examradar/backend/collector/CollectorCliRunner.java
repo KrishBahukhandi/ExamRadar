@@ -72,7 +72,7 @@ public class CollectorCliRunner implements CommandLineRunner {
         log.info("ExamRadar Ingestion run complete.");
     }
 
-    @org.springframework.scheduling.annotation.Scheduled(fixedDelayString = "\${examradar.collector.poll-interval-ms:7200000}", initialDelay = 7200000)
+    @org.springframework.scheduling.annotation.Scheduled(fixedDelayString = "${examradar.collector.poll-interval-ms:7200000}", initialDelay = 7200000)
     public void runPeriodicIngestion() {
         log.info("Running periodic ingestion cycle for all enabled sources...");
         List<Source> sources = sourceRepository.findByIsEnabledTrue();

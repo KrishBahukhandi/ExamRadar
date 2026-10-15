@@ -11,9 +11,9 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -32,18 +32,33 @@ fun NoticeCard(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val deadlineCountdown = DateFormatter.getDeadlineCountdown(notice.applicationDeadline)
-    val isUrgent = DateFormatter.isUrgentDeadline(notice.applicationDeadline)
+    val deadlineCountdown = remember(notice.id, notice.applicationDeadline) {
+        DateFormatter.getDeadlineCountdown(notice.applicationDeadline)
+    }
+    val isUrgent = remember(notice.id, notice.applicationDeadline) {
+        DateFormatter.isUrgentDeadline(notice.applicationDeadline)
+    }
+    val dateText = remember(notice.id, notice.applicationDeadline, notice.examDate, notice.publishedDate) {
+        if (notice.applicationDeadline != null) {
+            "Deadline: ${DateFormatter.format(notice.applicationDeadline)}"
+        } else if (notice.examDate != null) {
+            "Exam: ${DateFormatter.format(notice.examDate)}"
+        } else {
+            "Published: ${DateFormatter.format(notice.publishedDate)}"
+        }
+    }
+    val checkedTimeText = remember(notice.id, notice.lastCheckedTimestamp) {
+        "Checked ${DateFormatter.formatRelativeTime(notice.lastCheckedTimestamp)}"
+    }
 
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick),
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier
@@ -135,13 +150,7 @@ fun NoticeCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = if (notice.applicationDeadline != null) {
-                            "Deadline: ${DateFormatter.format(notice.applicationDeadline)}"
-                        } else if (notice.examDate != null) {
-                            "Exam: ${DateFormatter.format(notice.examDate)}"
-                        } else {
-                            "Published: ${DateFormatter.format(notice.publishedDate)}"
-                        },
+                        text = dateText,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -161,7 +170,7 @@ fun NoticeCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Checked ${DateFormatter.formatRelativeTime(notice.lastCheckedTimestamp)}",
+                    text = checkedTimeText,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

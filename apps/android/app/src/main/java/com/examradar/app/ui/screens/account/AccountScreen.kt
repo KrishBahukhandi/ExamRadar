@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -43,6 +44,12 @@ class AccountViewModel(
         }
     }
 
+    fun signOut() {
+        viewModelScope.launch {
+            repository.signOut()
+        }
+    }
+
     fun resetAccount(onCompleted: () -> Unit) {
         viewModelScope.launch {
             repository.resetAllUserData()
@@ -57,11 +64,13 @@ fun AccountScreen(
     viewModel: AccountViewModel,
     onNavigateToNotifications: () -> Unit,
     onNavigateToPrivacy: () -> Unit,
+    onNavigateToAuth: () -> Unit,
     onResetCompleted: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val prefs by viewModel.prefs.collectAsState()
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+    var showSignOutConfirmDialog by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
 
     if (showDeleteConfirmDialog) {
@@ -90,12 +99,37 @@ fun AccountScreen(
         )
     }
 
+    if (showSignOutConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showSignOutConfirmDialog = false },
+            title = { Text("Sign Out of ExamRadar?") },
+            text = {
+                Text("Your targets will remain safe in Supabase Cloud. You can sign back in anytime.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showSignOutConfirmDialog = false
+                        viewModel.signOut()
+                    }
+                ) {
+                    Text("Sign Out")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSignOutConfirmDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = "Account & Privacy",
+                        text = "Account & Profile",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -110,10 +144,11 @@ fun AccountScreen(
                 .verticalScroll(scrollState)
                 .padding(16.dp)
         ) {
-            // Profile & Guest Status Card
+            // Profile Card (Logged In vs Anonymous)
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                shape = RoundedCornerShape(14.dp)
             ) {
                 Row(
                     modifier = Modifier
@@ -121,53 +156,159 @@ fun AccountScreen(
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(52.dp)
-                            .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(26.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(28.dp)
-                        )
+                    if (prefs.isLoggedIn) {
+                        // User initials avatar
+                        val initials = (prefs.userFullName ?: prefs.userEmail ?: "U")
+                            .split(" ")
+                            .mapNotNull { it.firstOrNull()?.toString() }
+                            .take(2)
+                            .joinToString("")
+                            .uppercase()
+
+                        Box(
+                            modifier = Modifier
+                                .size(54.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = initials.ifBlank { "U" },
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 20.sp
+                            )
+                        }
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(54.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.width(16.dp))
 
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "Guest Candidate",
+                                text = if (prefs.isLoggedIn) (prefs.userFullName ?: "Candidate") else "Guest Candidate",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
+                        }
+
+                        if (prefs.isLoggedIn && !prefs.userEmail.isNullOrBlank()) {
+                            Text(
+                                text = prefs.userEmail ?: "",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            // Cloud Synced Badge
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.CloudDone,
+                                    contentDescription = null,
+                                    tint = Color(0xFF16A34A),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Synced with Supabase Cloud",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF16A34A)
+                                )
+                            }
+                        } else {
+                            Spacer(modifier = Modifier.height(2.dp))
                             Box(
                                 modifier = Modifier
                                     .background(Color(0xFFE2E8F0), RoundedCornerShape(4.dp))
                                     .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
-                                Text(text = "Anonymous Mode", fontSize = 10.sp, color = Color(0xFF475569))
+                                Text(
+                                    text = "Anonymous Guest Mode",
+                                    fontSize = 10.sp,
+                                    color = Color(0xFF475569)
+                                )
                             }
                         }
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Status: ${if (prefs.graduationStatus == "GRADUATED") "Graduate" else "Final Year Student"}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Navigation Links
+            // If not logged in, show callout banner to sign in / create account
+            if (!prefs.isLoggedIn) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.CloudSync,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Sync Your Exam Radar Across Devices",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Text(
+                            text = "Sign in or create a free candidate account to back up your followed exams, checklists, and deadline alerts to Supabase.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Button(
+                            onClick = onNavigateToAuth,
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Login,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Sign In / Create Account",
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            // Preferences Section
             Text(
-                text = "Preferences & Data",
+                text = "Preferences & Security",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -182,12 +323,21 @@ fun AccountScreen(
 
             AccountNavRow(
                 icon = Icons.Default.Security,
-                title = "Privacy Policy & Independence Statement",
-                subtitle = "Read our data handling and non-affiliation policy",
+                title = "Privacy Policy & Independence",
+                subtitle = "Read data handling and non-affiliation policy",
                 onClick = onNavigateToPrivacy
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            if (prefs.isLoggedIn) {
+                AccountNavRow(
+                    icon = Icons.Default.Logout,
+                    title = "Sign Out",
+                    subtitle = "Disconnect from this device",
+                    onClick = { showSignOutConfirmDialog = true }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
 
             // Delete Account / Reset Data Section
             Text(
@@ -199,7 +349,8 @@ fun AccountScreen(
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF1F2))
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF1F2)),
+                shape = RoundedCornerShape(12.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
@@ -210,7 +361,7 @@ fun AccountScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Permanently clear your examination targets, notification tokens, and application checklists.",
+                        text = "Permanently clear your examination targets, notification tokens, and application checklists from this device.",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFF881337)
                     )
@@ -245,9 +396,10 @@ fun AccountNavRow(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(10.dp))
             .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(10.dp)
     ) {
         Row(
             modifier = Modifier

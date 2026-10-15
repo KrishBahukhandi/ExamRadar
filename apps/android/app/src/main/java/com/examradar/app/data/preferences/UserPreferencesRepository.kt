@@ -22,7 +22,12 @@ data class UserPreferences(
     val reminder7Days: Boolean = true,
     val reminder3Days: Boolean = true,
     val reminder1Day: Boolean = true,
-    val pushEnabled: Boolean = true
+    val pushEnabled: Boolean = true,
+    val isLoggedIn: Boolean = false,
+    val userId: String? = null,
+    val userEmail: String? = null,
+    val userFullName: String? = null,
+    val authToken: String? = null
 )
 
 class UserPreferencesRepository(private val context: Context) {
@@ -41,6 +46,11 @@ class UserPreferencesRepository(private val context: Context) {
         val REMINDER_3D = booleanPreferencesKey("reminder_3d")
         val REMINDER_1D = booleanPreferencesKey("reminder_1d")
         val PUSH_ENABLED = booleanPreferencesKey("push_enabled")
+        val IS_LOGGED_IN = booleanPreferencesKey("is_logged_in")
+        val USER_ID = stringPreferencesKey("user_id")
+        val USER_EMAIL = stringPreferencesKey("user_email")
+        val USER_FULL_NAME = stringPreferencesKey("user_full_name")
+        val AUTH_TOKEN = stringPreferencesKey("auth_token")
     }
 
     val userPreferences: Flow<UserPreferences> = context.dataStore.data.map { prefs ->
@@ -57,7 +67,12 @@ class UserPreferencesRepository(private val context: Context) {
             reminder7Days = prefs[Keys.REMINDER_7D] ?: true,
             reminder3Days = prefs[Keys.REMINDER_3D] ?: true,
             reminder1Day = prefs[Keys.REMINDER_1D] ?: true,
-            pushEnabled = prefs[Keys.PUSH_ENABLED] ?: true
+            pushEnabled = prefs[Keys.PUSH_ENABLED] ?: true,
+            isLoggedIn = prefs[Keys.IS_LOGGED_IN] ?: false,
+            userId = prefs[Keys.USER_ID],
+            userEmail = prefs[Keys.USER_EMAIL],
+            userFullName = prefs[Keys.USER_FULL_NAME],
+            authToken = prefs[Keys.AUTH_TOKEN]
         )
     }
 
@@ -106,6 +121,26 @@ class UserPreferencesRepository(private val context: Context) {
             prefs[Keys.REMINDER_3D] = r3
             prefs[Keys.REMINDER_1D] = r1
             prefs[Keys.PUSH_ENABLED] = push
+        }
+    }
+
+    suspend fun saveUserSession(userId: String, email: String, fullName: String, token: String) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.IS_LOGGED_IN] = true
+            prefs[Keys.USER_ID] = userId
+            prefs[Keys.USER_EMAIL] = email
+            prefs[Keys.USER_FULL_NAME] = fullName
+            prefs[Keys.AUTH_TOKEN] = token
+        }
+    }
+
+    suspend fun clearUserSession() {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.IS_LOGGED_IN] = false
+            prefs.remove(Keys.USER_ID)
+            prefs.remove(Keys.USER_EMAIL)
+            prefs.remove(Keys.USER_FULL_NAME)
+            prefs.remove(Keys.AUTH_TOKEN)
         }
     }
 

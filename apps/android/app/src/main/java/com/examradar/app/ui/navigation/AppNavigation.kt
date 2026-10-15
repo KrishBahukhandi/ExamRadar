@@ -30,6 +30,8 @@ import com.examradar.app.ui.screens.home.HomeScreen
 import com.examradar.app.ui.screens.home.HomeViewModel
 import com.examradar.app.ui.screens.notifications.NotificationSettingsScreen
 import com.examradar.app.ui.screens.notifications.NotificationSettingsViewModel
+import com.examradar.app.ui.screens.auth.AuthScreen
+import com.examradar.app.ui.screens.auth.AuthViewModel
 import com.examradar.app.ui.screens.onboarding.OnboardingScreen
 import com.examradar.app.ui.screens.onboarding.OnboardingViewModel
 
@@ -222,10 +224,27 @@ fun AppNavigation(
                     onNavigateToPrivacy = {
                         navController.navigate(Screen.PrivacyPolicy.route)
                     },
+                    onNavigateToAuth = {
+                        navController.navigate(Screen.Auth.route)
+                    },
                     onResetCompleted = {
                         navController.navigate(Screen.Onboarding.route) {
                             popUpTo(0) { inclusive = true }
                         }
+                    }
+                )
+            }
+
+            // Authentication (Sign In & Sign Up)
+            composable(Screen.Auth.route) {
+                val authViewModel = remember { AuthViewModel(repository) }
+                AuthScreen(
+                    viewModel = authViewModel,
+                    onAuthSuccess = {
+                        navController.popBackStack()
+                    },
+                    onSkip = {
+                        navController.popBackStack()
                     }
                 )
             }

@@ -47,11 +47,15 @@ interface ExamRadarRepository {
     fun toggleChecklistItem(examId: String, itemKey: String)
     fun getSourceFreshness(): Flow<SourceFreshnessInfo>
     suspend fun refreshNotices(): Boolean
+    suspend fun signUp(email: String, password: String, fullName: String): com.examradar.app.data.remote.AuthResult
+    suspend fun signIn(email: String, password: String): com.examradar.app.data.remote.AuthResult
+    suspend fun signOut()
 }
 
 class ExamRadarRepositoryImpl(
     private val preferencesRepository: UserPreferencesRepository,
-    private val apiClient: ExamRadarApiClient = ExamRadarApiClient()
+    private val apiClient: ExamRadarApiClient = ExamRadarApiClient(),
+    private val authService: com.examradar.app.data.remote.SupabaseAuthService = com.examradar.app.data.remote.SupabaseAuthService()
 ) : ExamRadarRepository {
 
     private val completedChecklistItems = MutableStateFlow<Map<String, Set<String>>>(emptyMap())
@@ -252,4 +256,54 @@ class ExamRadarRepositoryImpl(
                 )
             }
         }
+
+    override suspend fun signUp(email: String, password: String, fullName: String): com.examradar.app.data.remote.AuthResult {
+        val result = authService.signUp(email, password, fullName)
+        if (result is com.examradar.app.data.remote.AuthResult.Success) {
+            preferencesRepository.saveUserSession(
+                userId = result.session.user.id,
+                email = result.session.user.email,
+                fullName = result.session.user.fullName,
+                token = result.session.accessToken
+            )
+            val currentExams = preferencesRepository.userPreferences
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                currentExams.collect { prefs ->
+                    authService.syncPreferencesToBackend(
+                        token = result.session.accessToken,
+                        followedExams = prefs.followedExams,
+                        followedCategories = prefs.followedCategories
+                    )
+                }
+            }
+        }
+        return result
+    }
+
+    override suspend fun signIn(email: String, password: String): com.examradar.app.data.remote.AuthResult {
+        val result = authService.signIn(email, password)
+        if (result is com.examradar.app.data.remote.AuthResult.Success) {
+            preferencesRepository.saveUserSession(
+                userId = result.session.user.id,
+                email = result.session.user.email,
+                fullName = result.session.user.fullName,
+                token = result.session.accessToken
+            )
+            val currentExams = preferencesRepository.userPreferences
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                currentExams.collect { prefs ->
+                    authService.syncPreferencesToBackend(
+                        token = result.session.accessToken,
+                        followedExams = prefs.followedExams,
+                        followedCategories = prefs.followedCategories
+                    )
+                }
+            }
+        }
+        return result
+    }
+
+    override suspend fun signOut() {
+        preferencesRepository.clearUserSession()
+    }
 }

@@ -1,0 +1,241 @@
+package com.examradar.app.ui.navigation
+
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
+import androidx.navigation.compose.*
+import androidx.navigation.navArgument
+import com.examradar.app.data.repository.ExamRadarRepository
+import com.examradar.app.ui.components.LoadingStateView
+import com.examradar.app.ui.screens.account.AccountScreen
+import com.examradar.app.ui.screens.account.AccountViewModel
+import com.examradar.app.ui.screens.account.PrivacyPolicyScreen
+import com.examradar.app.ui.screens.calendar.CalendarScreen
+import com.examradar.app.ui.screens.calendar.CalendarViewModel
+import com.examradar.app.ui.screens.checklist.ChecklistScreen
+import com.examradar.app.ui.screens.checklist.ChecklistViewModel
+import com.examradar.app.ui.screens.details.NoticeDetailScreen
+import com.examradar.app.ui.screens.details.NoticeDetailViewModel
+import com.examradar.app.ui.screens.discovery.DiscoveryScreen
+import com.examradar.app.ui.screens.discovery.DiscoveryViewModel
+import com.examradar.app.ui.screens.home.HomeScreen
+import com.examradar.app.ui.screens.home.HomeViewModel
+import com.examradar.app.ui.screens.notifications.NotificationSettingsScreen
+import com.examradar.app.ui.screens.notifications.NotificationSettingsViewModel
+import com.examradar.app.ui.screens.onboarding.OnboardingScreen
+import com.examradar.app.ui.screens.onboarding.OnboardingViewModel
+
+@Composable
+fun AppNavigation(
+    repository: ExamRadarRepository,
+    modifier: Modifier = Modifier
+) {
+    val navController = rememberNavController()
+    val userPrefs by repository.getUserPreferences().collectAsState(initial = null)
+
+    if (userPrefs == null) {
+        LoadingStateView()
+        return
+    }
+
+    val startDestination = if (userPrefs!!.isOnboardingCompleted) {
+        Screen.Home.route
+    } else {
+        Screen.Onboarding.route
+    }
+
+    val currentBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = currentBackStackEntry?.destination?.route
+
+    val bottomNavRoutes = setOf(
+        Screen.Home.route,
+        Screen.Discovery.route,
+        Screen.Calendar.route,
+        Screen.Account.route
+    )
+    val showBottomBar = currentRoute in bottomNavRoutes
+
+    Scaffold(
+        bottomBar = {
+            if (showBottomBar) {
+                NavigationBar {
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
+                        label = { Text("Home") },
+                        selected = currentRoute == Screen.Home.route,
+                        onClick = {
+                            navController.navigate(Screen.Home.route) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    )
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Default.Search, contentDescription = "Discover") },
+                        label = { Text("Discover") },
+                        selected = currentRoute == Screen.Discovery.route,
+                        onClick = {
+                            navController.navigate(Screen.Discovery.route) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    )
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Default.CalendarMonth, contentDescription = "Calendar") },
+                        label = { Text("Calendar") },
+                        selected = currentRoute == Screen.Calendar.route,
+                        onClick = {
+                            navController.navigate(Screen.Calendar.route) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    )
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Default.Person, contentDescription = "Account") },
+                        label = { Text("Account") },
+                        selected = currentRoute == Screen.Account.route,
+                        onClick = {
+                            navController.navigate(Screen.Account.route) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    )
+                }
+            }
+        }
+    ) { paddingValues ->
+        NavHost(
+            navController = navController,
+            startDestination = startDestination,
+            modifier = modifier.padding(paddingValues)
+        ) {
+            // Onboarding
+            composable(Screen.Onboarding.route) {
+                val onboardingViewModel = remember { OnboardingViewModel(repository) }
+                OnboardingScreen(
+                    viewModel = onboardingViewModel,
+                    onComplete = {
+                        navController.navigate(Screen.Home.route) {
+                            popUpTo(Screen.Onboarding.route) { inclusive = true }
+                        }
+                    }
+                )
+            }
+
+            // Home Dashboard
+            composable(Screen.Home.route) {
+                val homeViewModel = remember { HomeViewModel(repository) }
+                HomeScreen(
+                    viewModel = homeViewModel,
+                    onNoticeClick = { noticeId ->
+                        navController.navigate(Screen.NoticeDetail.createRoute(noticeId))
+                    },
+                    onNotificationsClick = {
+                        navController.navigate(Screen.NotificationSettings.route)
+                    }
+                )
+            }
+
+            // Discovery
+            composable(Screen.Discovery.route) {
+                val discoveryViewModel = remember { DiscoveryViewModel(repository) }
+                DiscoveryScreen(
+                    viewModel = discoveryViewModel,
+                    onExamClick = { examId ->
+                        navController.navigate(Screen.Checklist.createRoute(examId))
+                    }
+                )
+            }
+
+            // Calendar
+            composable(Screen.Calendar.route) {
+                val calendarViewModel = remember { CalendarViewModel(repository) }
+                CalendarScreen(
+                    viewModel = calendarViewModel,
+                    onNoticeClick = { noticeId ->
+                        navController.navigate(Screen.NoticeDetail.createRoute(noticeId))
+                    }
+                )
+            }
+
+            // Notice Details
+            composable(
+                route = Screen.NoticeDetail.route,
+                arguments = listOf(navArgument("noticeId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val noticeId = backStackEntry.arguments?.getString("noticeId") ?: ""
+                val detailViewModel = remember(noticeId) { NoticeDetailViewModel(repository, noticeId) }
+                NoticeDetailScreen(
+                    viewModel = detailViewModel,
+                    onBackClick = { navController.popBackStack() },
+                    onOpenChecklist = { examId ->
+                        navController.navigate(Screen.Checklist.createRoute(examId))
+                    }
+                )
+            }
+
+            // Application Checklist
+            composable(
+                route = Screen.Checklist.route,
+                arguments = listOf(navArgument("examId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val examId = backStackEntry.arguments?.getString("examId") ?: ""
+                val checklistViewModel = remember(examId) { ChecklistViewModel(repository, examId) }
+                ChecklistScreen(
+                    viewModel = checklistViewModel,
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
+
+            // Notification Settings
+            composable(Screen.NotificationSettings.route) {
+                val notifViewModel = remember { NotificationSettingsViewModel(repository) }
+                NotificationSettingsScreen(
+                    viewModel = notifViewModel,
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
+
+            // Account & Privacy
+            composable(Screen.Account.route) {
+                val accountViewModel = remember { AccountViewModel(repository) }
+                AccountScreen(
+                    viewModel = accountViewModel,
+                    onNavigateToNotifications = {
+                        navController.navigate(Screen.NotificationSettings.route)
+                    },
+                    onNavigateToPrivacy = {
+                        navController.navigate(Screen.PrivacyPolicy.route)
+                    },
+                    onResetCompleted = {
+                        navController.navigate(Screen.Onboarding.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                )
+            }
+
+            // Privacy Policy Details
+            composable(Screen.PrivacyPolicy.route) {
+                PrivacyPolicyScreen(
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
+        }
+    }
+}

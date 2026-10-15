@@ -1,0 +1,42 @@
+# OS Files
+.DS_Store
+Thumbs.db
+
+# IDE & Editor files
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# Build outputs
+**/build/
+bin/
+**/target/
+out/
+**/.gradle/
+
+# Android
+*.apk
+*.aab
+local.properties
+.cxx/
+captures/
+
+# Secrets and environment files
+.env
+*.local.env
+*.keystore
+*.jks
+google-services.json
+firebase-service-account.json
+supabase-keys.json
+private-key.pem
+
+# Logs
+*.log
+logs/
+
+# Test reports
+test-output/
+jacoco/

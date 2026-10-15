@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">ExamRadar India</string>
+    <string name="app_tagline">Official Indian Government Examination &amp; Recruitment Tracker</string>
+    <string name="disclaimer_short">ExamRadar is an independent informational platform and is not affiliated with or endorsed by any government entity.</string>
+</resources>

@@ -26,6 +26,10 @@ class IngestionEngineTest {
     private final NoticeDateRepository dateRepository = mock(NoticeDateRepository.class);
     private final ExamRepository examRepository = mock(ExamRepository.class);
     private final SourceHealthSnapshotRepository healthSnapshotRepository = mock(SourceHealthSnapshotRepository.class);
+    private final com.examradar.backend.notification.NotificationDispatcherService notificationDispatcherService =
+            mock(com.examradar.backend.notification.NotificationDispatcherService.class);
+    private final com.examradar.backend.notification.DeadlineReminderScheduler deadlineReminderScheduler =
+            mock(com.examradar.backend.notification.DeadlineReminderScheduler.class);
 
     private IngestionEngine engine;
     private Source testSource;
@@ -44,7 +48,9 @@ class IngestionEngineTest {
                 versionRepository,
                 dateRepository,
                 examRepository,
-                healthSnapshotRepository
+                healthSnapshotRepository,
+                notificationDispatcherService,
+                deadlineReminderScheduler
         );
 
         testSource = new Source("src-test", "Test Org", "Test Notice Board", "https://test.gov.in",

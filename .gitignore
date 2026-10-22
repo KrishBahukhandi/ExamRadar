@@ -25,10 +25,15 @@ captures/
 
 # Secrets and environment files
 .env
+.env.*
 *.local.env
 *.keystore
 *.jks
-google-services.json
+*.key
+*.pem
+**/google-services.json
+*firebase*.json
+*-firebase-adminsdk-*.json
 firebase-service-account.json
 supabase-keys.json
 private-key.pem

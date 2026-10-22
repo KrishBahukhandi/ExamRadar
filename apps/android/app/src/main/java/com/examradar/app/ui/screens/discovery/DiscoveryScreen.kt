@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,8 +51,22 @@ class DiscoveryViewModel(
     private val _uiState = MutableStateFlow(DiscoveryUiState())
     val uiState = _uiState.asStateFlow()
 
+    var isRefreshing by mutableStateOf(false)
+        private set
+
     init {
         loadData()
+    }
+
+    fun refresh() {
+        viewModelScope.launch {
+            isRefreshing = true
+            try {
+                repository.refreshNotices()
+            } finally {
+                isRefreshing = false
+            }
+        }
     }
 
     private fun loadData() {
@@ -162,34 +177,40 @@ fun DiscoveryScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            if (uiState.isLoading) {
-                LoadingStateView()
-            } else if (uiState.exams.isEmpty()) {
-                EmptyStateView(
-                    title = "No Examinations Found",
-                    message = "No examinations match your search query. Try broadening your terms."
-                )
-            } else {
-                val listState = rememberLazyListState()
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(
-                        items = uiState.exams,
-                        key = { it.id },
-                        contentType = { "exam_card" }
-                    ) { exam ->
-                        ExamDiscoveryCard(
-                            exam = exam,
-                            onClick = { onExamClick(exam.id) },
-                            onToggleFollow = { viewModel.toggleFollowExam(exam.id) },
-                            onOpenPortal = {
-                                CustomTabsHelper.openOfficialUrl(context, exam.officialPortalUrl)
-                            }
-                        )
+            PullToRefreshBox(
+                isRefreshing = viewModel.isRefreshing,
+                onRefresh = { viewModel.refresh() },
+                modifier = Modifier.fillMaxSize()
+            ) {
+                if (uiState.isLoading) {
+                    LoadingStateView()
+                } else if (uiState.exams.isEmpty()) {
+                    EmptyStateView(
+                        title = "No Examinations Found",
+                        message = "No examinations match your search query. Try broadening your terms."
+                    )
+                } else {
+                    val listState = rememberLazyListState()
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(
+                            items = uiState.exams,
+                            key = { it.id },
+                            contentType = { "exam_card" }
+                        ) { exam ->
+                            ExamDiscoveryCard(
+                                exam = exam,
+                                onClick = { onExamClick(exam.id) },
+                                onToggleFollow = { viewModel.toggleFollowExam(exam.id) },
+                                onOpenPortal = {
+                                    CustomTabsHelper.openOfficialUrl(context, exam.officialPortalUrl)
+                                }
+                            )
+                        }
                     }
                 }
             }

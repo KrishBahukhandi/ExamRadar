@@ -11,7 +11,7 @@ public class Exam {
     @Column(length = 64)
     private String id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "category_id", nullable = false)
     private ExamCategory category;
 

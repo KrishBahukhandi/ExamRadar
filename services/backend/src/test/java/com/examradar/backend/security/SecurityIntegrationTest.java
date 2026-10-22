@@ -62,4 +62,48 @@ class SecurityIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
     }
+
+    @Test
+    void testForgedUnsignedJwtIsRejected() throws Exception {
+        UUID testUserId = UUID.randomUUID();
+        String forgedJwt = "eyJhbGciOiJub25lIn0." +
+                java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(
+                        ("{\"sub\":\"" + testUserId + "\",\"role\":\"admin\",\"email\":\"attacker@examradar.in\"}").getBytes(java.nio.charset.StandardCharsets.UTF_8)
+                ) + ".";
+
+        mockMvc.perform(get("/api/v1/admin/sources")
+                        .header("Authorization", "Bearer " + forgedJwt)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void testJwtWithInvalidSignatureIsRejected() throws Exception {
+        UUID testUserId = UUID.randomUUID();
+        String wrongSecret = "d3Jvbmctc2VjcmV0LWtleS1wbGFjZWhvbGRlci1taW5pbXVtLTI1Ni1iaXRzLWxlbmd0aA==";
+        String forgedJwt = io.jsonwebtoken.Jwts.builder()
+                .subject(testUserId.toString())
+                .claim("email", "attacker@examradar.in")
+                .claim("role", "admin")
+                .signWith(io.jsonwebtoken.security.Keys.hmacShaKeyFor(wrongSecret.getBytes(java.nio.charset.StandardCharsets.UTF_8)))
+                .compact();
+
+        mockMvc.perform(get("/api/v1/admin/sources")
+                        .header("Authorization", "Bearer " + forgedJwt)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void testActuatorHealthIsPermitted() throws Exception {
+        mockMvc.perform(get("/actuator/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"));
+    }
+
+    @Test
+    void testActuatorEnvIsForbiddenWithoutAdminRole() throws Exception {
+        mockMvc.perform(get("/actuator/env"))
+                .andExpect(status().isForbidden());
+    }
 }

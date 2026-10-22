@@ -1,9 +1,12 @@
 package com.examradar.app.data.preferences
 
 import android.content.Context
+import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -27,10 +30,29 @@ data class UserPreferences(
     val userId: String? = null,
     val userEmail: String? = null,
     val userFullName: String? = null,
-    val authToken: String? = null
+    val authToken: String? = null,
+    val refreshToken: String? = null
 )
 
 class UserPreferencesRepository(private val context: Context) {
+
+    private val securePrefs by lazy {
+        try {
+            val masterKey = MasterKey.Builder(context)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
+            EncryptedSharedPreferences.create(
+                context,
+                "examradar_secure_prefs",
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        } catch (e: Exception) {
+            Log.e("UserPreferencesRepo", "Failed to initialize EncryptedSharedPreferences", e)
+            null
+        }
+    }
 
     private object Keys {
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
@@ -51,9 +73,23 @@ class UserPreferencesRepository(private val context: Context) {
         val USER_EMAIL = stringPreferencesKey("user_email")
         val USER_FULL_NAME = stringPreferencesKey("user_full_name")
         val AUTH_TOKEN = stringPreferencesKey("auth_token")
+        val REFRESH_TOKEN = stringPreferencesKey("refresh_token")
     }
 
     val userPreferences: Flow<UserPreferences> = context.dataStore.data.map { prefs ->
+        val secureToken = try {
+            securePrefs?.getString("auth_token", null)
+        } catch (e: Exception) {
+            Log.w("UserPreferencesRepo", "Error reading encrypted token", e)
+            null
+        } ?: prefs[Keys.AUTH_TOKEN]
+
+        val secureRefreshToken = try {
+            securePrefs?.getString("refresh_token", null)
+        } catch (e: Exception) {
+            null
+        } ?: prefs[Keys.REFRESH_TOKEN]
+
         UserPreferences(
             isOnboardingCompleted = prefs[Keys.ONBOARDING_COMPLETED] ?: false,
             followedCategories = prefs[Keys.FOLLOWED_CATEGORIES] ?: setOf("cat-upsc", "cat-ssc", "cat-banking"),
@@ -72,7 +108,8 @@ class UserPreferencesRepository(private val context: Context) {
             userId = prefs[Keys.USER_ID],
             userEmail = prefs[Keys.USER_EMAIL],
             userFullName = prefs[Keys.USER_FULL_NAME],
-            authToken = prefs[Keys.AUTH_TOKEN]
+            authToken = secureToken,
+            refreshToken = secureRefreshToken
         )
     }
 
@@ -124,27 +161,92 @@ class UserPreferencesRepository(private val context: Context) {
         }
     }
 
-    suspend fun saveUserSession(userId: String, email: String, fullName: String, token: String) {
+    suspend fun saveUserSession(userId: String, email: String, fullName: String, token: String, refreshToken: String? = null) {
+        var encryptedSuccessfully = false
+        try {
+            if (securePrefs != null) {
+                val editor = securePrefs?.edit()?.putString("auth_token", token)
+                if (refreshToken != null) {
+                    editor?.putString("refresh_token", refreshToken)
+                }
+                editor?.apply()
+                encryptedSuccessfully = true
+            }
+        } catch (e: Exception) {
+            Log.e("UserPreferencesRepo", "Failed to store encrypted auth token", e)
+        }
         context.dataStore.edit { prefs ->
             prefs[Keys.IS_LOGGED_IN] = true
             prefs[Keys.USER_ID] = userId
             prefs[Keys.USER_EMAIL] = email
             prefs[Keys.USER_FULL_NAME] = fullName
+            if (encryptedSuccessfully) {
+                prefs.remove(Keys.AUTH_TOKEN)
+                prefs.remove(Keys.REFRESH_TOKEN)
+            } else {
+                prefs[Keys.AUTH_TOKEN] = token
+                if (refreshToken != null) prefs[Keys.REFRESH_TOKEN] = refreshToken
+            }
+        }
+    }
+
+    suspend fun updateAuthToken(token: String, refreshToken: String? = null) {
+        try {
+            val editor = securePrefs?.edit()?.putString("auth_token", token)
+            if (refreshToken != null) editor?.putString("refresh_token", refreshToken)
+            editor?.apply()
+        } catch (_: Exception) {}
+        context.dataStore.edit { prefs ->
             prefs[Keys.AUTH_TOKEN] = token
+            if (refreshToken != null) prefs[Keys.REFRESH_TOKEN] = refreshToken
         }
     }
 
     suspend fun clearUserSession() {
+        try {
+            securePrefs?.edit()?.remove("auth_token")?.remove("refresh_token")?.apply()
+        } catch (e: Exception) {
+            Log.e("UserPreferencesRepo", "Failed to remove encrypted auth token", e)
+        }
         context.dataStore.edit { prefs ->
             prefs[Keys.IS_LOGGED_IN] = false
             prefs.remove(Keys.USER_ID)
             prefs.remove(Keys.USER_EMAIL)
             prefs.remove(Keys.USER_FULL_NAME)
             prefs.remove(Keys.AUTH_TOKEN)
+            prefs.remove(Keys.REFRESH_TOKEN)
+        }
+    }
+
+    fun getCompletedChecklistItems(examId: String): Flow<Set<String>> =
+        context.dataStore.data.map { prefs ->
+            prefs[stringSetPreferencesKey("checklist_$examId")] ?: emptySet()
+        }
+
+    suspend fun toggleChecklistItem(examId: String, itemKey: String): Set<String> {
+        val key = stringSetPreferencesKey("checklist_$examId")
+        var updated = emptySet<String>()
+        context.dataStore.edit { prefs ->
+            val current = prefs[key] ?: emptySet()
+            updated = if (current.contains(itemKey)) current - itemKey else current + itemKey
+            prefs[key] = updated
+        }
+        return updated
+    }
+
+    suspend fun setChecklistItems(examId: String, items: Set<String>) {
+        val key = stringSetPreferencesKey("checklist_$examId")
+        context.dataStore.edit { prefs ->
+            prefs[key] = items
         }
     }
 
     suspend fun clearAllData() {
+        try {
+            securePrefs?.edit()?.clear()?.apply()
+        } catch (e: Exception) {
+            Log.e("UserPreferencesRepo", "Failed to clear encrypted prefs", e)
+        }
         context.dataStore.edit { it.clear() }
     }
 }

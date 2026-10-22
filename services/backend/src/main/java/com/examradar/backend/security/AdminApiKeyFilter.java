@@ -19,7 +19,7 @@ import java.util.UUID;
 @Component
 public class AdminApiKeyFilter extends OncePerRequestFilter {
 
-    @Value("${examradar.admin.api-key:examradar-admin-secret-dev}")
+    @Value("${examradar.security.admin-api-key:${examradar.admin.api-key:examradar-admin-secret-dev}}")
     private String adminApiKey;
 
     @Override

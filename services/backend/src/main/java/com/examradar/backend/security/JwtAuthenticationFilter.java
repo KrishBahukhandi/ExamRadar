@@ -28,8 +28,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
-    @Value("${examradar.jwt.secret:}")
+    @Value("${examradar.security.jwt.secret:${examradar.jwt.secret:}}")
     private String jwtSecret;
+
+    @Value("${examradar.security.jwt.allow-unverified-fallback:false}")
+    private boolean allowUnverifiedFallback;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -57,39 +60,46 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private AuthenticatedUser parseToken(String token) {
-        // If JWT secret is configured, perform full cryptographic verification
+        // Full cryptographic verification using HMAC-SHA256
         if (jwtSecret != null && jwtSecret.length() >= 32) {
-            byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
-            JwtParser parser = Jwts.parser().verifyWith(Keys.hmacShaKeyFor(keyBytes)).build();
-            Claims claims = parser.parseSignedClaims(token).getPayload();
+            try {
+                byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
+                JwtParser parser = Jwts.parser().verifyWith(Keys.hmacShaKeyFor(keyBytes)).build();
+                Claims claims = parser.parseSignedClaims(token).getPayload();
 
-            String sub = claims.getSubject();
-            if (sub == null) return null;
+                String sub = claims.getSubject();
+                if (sub == null) return null;
 
-            UUID userId = UUID.fromString(sub);
-            String email = claims.get("email", String.class);
-            String role = claims.get("role", String.class);
-            boolean isAdmin = "service_role".equals(role) || "admin".equals(role);
+                UUID userId = UUID.fromString(sub);
+                String email = claims.get("email", String.class);
+                String role = claims.get("role", String.class);
+                boolean isAdmin = "service_role".equals(role) || "admin".equals(role);
 
-            return new AuthenticatedUser(userId, email, role, isAdmin);
+                return new AuthenticatedUser(userId, email, role, isAdmin);
+            } catch (Exception e) {
+                log.debug("Cryptographic JWT signature verification failed: {}", e.getMessage());
+                return null;
+            }
         }
 
-        // Development/Test fallback: parse unverified claims safely for local dev mode
-        try {
-            String[] parts = token.split("\\.");
-            if (parts.length >= 2) {
-                String payloadJson = new String(java.util.Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8);
-                com.fasterxml.jackson.databind.JsonNode node = new com.fasterxml.jackson.databind.ObjectMapper().readTree(payloadJson);
-                String sub = node.path("sub").asText(null);
-                if (sub != null) {
-                    UUID userId = UUID.fromString(sub);
-                    String email = node.path("email").asText("user@examradar.in");
-                    String role = node.path("role").asText("authenticated");
-                    boolean isAdmin = "service_role".equals(role) || "admin".equals(role);
-                    return new AuthenticatedUser(userId, email, role, isAdmin);
+        // Development/Test fallback: strictly gated and NEVER grants admin rights
+        if (allowUnverifiedFallback) {
+            log.warn("SECURITY WARNING: Using unverified JWT fallback. Gated to non-production only!");
+            try {
+                String[] parts = token.split("\\.");
+                if (parts.length >= 2) {
+                    String payloadJson = new String(java.util.Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8);
+                    com.fasterxml.jackson.databind.JsonNode node = new com.fasterxml.jackson.databind.ObjectMapper().readTree(payloadJson);
+                    String sub = node.path("sub").asText(null);
+                    if (sub != null) {
+                        UUID userId = UUID.fromString(sub);
+                        String email = node.path("email").asText("user@examradar.in");
+                        String role = node.path("role").asText("authenticated");
+                        return new AuthenticatedUser(userId, email, role, false);
+                    }
                 }
-            }
-        } catch (Exception ignored) {}
+            } catch (Exception ignored) {}
+        }
 
         return null;
     }

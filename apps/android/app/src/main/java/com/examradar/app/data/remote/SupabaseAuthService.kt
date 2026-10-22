@@ -1,6 +1,7 @@
 package com.examradar.app.data.remote
 
 import android.util.Log
+import com.examradar.app.BuildConfig
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.annotations.SerializedName
@@ -26,6 +27,10 @@ data class AuthUser(
 data class AuthSession(
     @SerializedName("access_token")
     val accessToken: String,
+    @SerializedName("refresh_token")
+    val refreshToken: String? = null,
+    @SerializedName("expires_in")
+    val expiresIn: Long? = 3600,
     @SerializedName("token_type")
     val tokenType: String? = "bearer",
     val user: AuthUser
@@ -37,9 +42,9 @@ sealed class AuthResult {
 }
 
 class SupabaseAuthService(
-    private val supabaseUrl: String = "https://qcdbjbattatozsuhwfyf.supabase.co",
-    private val anonKey: String = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjZGJqYmF0dGF0b3pzdWh3ZnlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwNjczMzIsImV4cCI6MjEwNzY0MzMzMn0.neMmoU8essGji3F1xDee1YPCFPJQDVX45vrhk89MEho",
-    private val backendBaseUrl: String = "http://10.0.2.2:8085"
+    private val supabaseUrl: String = BuildConfig.SUPABASE_URL,
+    private val anonKey: String = BuildConfig.SUPABASE_ANON_KEY,
+    private val backendBaseUrl: String = BuildConfig.API_BASE_URL
 ) {
     private val client = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
@@ -125,6 +130,39 @@ class SupabaseAuthService(
             }
         }
 
+    suspend fun refreshSession(refreshToken: String): AuthResult =
+        withContext(Dispatchers.IO) {
+            try {
+                val payload = JsonObject().apply {
+                    addProperty("refresh_token", refreshToken)
+                }
+
+                val request = Request.Builder()
+                    .url("$supabaseUrl/auth/v1/token?grant_type=refresh_token")
+                    .header("apikey", anonKey)
+                    .header("Content-Type", "application/json")
+                    .post(payload.toString().toRequestBody(jsonMediaType))
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    val bodyStr = response.body?.string() ?: ""
+                    if (!response.isSuccessful) {
+                        return@withContext AuthResult.Error("Session expired, please sign in again")
+                    }
+
+                    val session = gson.fromJson(bodyStr, AuthSession::class.java)
+                    if (session?.accessToken != null && session.user != null) {
+                        AuthResult.Success(session)
+                    } else {
+                        AuthResult.Error("Unable to refresh session token")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("SupabaseAuthService", "refreshSession exception", e)
+                AuthResult.Error(e.localizedMessage ?: "Network connection error")
+            }
+        }
+
     suspend fun syncPreferencesToBackend(
         token: String,
         followedExams: Set<String>,
@@ -158,6 +196,25 @@ class SupabaseAuthService(
             }
         } catch (e: Exception) {
             Log.w("SupabaseAuthService", "Failed to sync preferences to backend: ${e.message}")
+            false
+        }
+    }
+
+    suspend fun logout(token: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val request = Request.Builder()
+                .url("$supabaseUrl/auth/v1/logout")
+                .header("apikey", anonKey)
+                .header("Authorization", "Bearer $token")
+                .header("Content-Type", "application/json")
+                .post("{}".toRequestBody(jsonMediaType))
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                response.isSuccessful
+            }
+        } catch (e: Exception) {
+            Log.w("SupabaseAuthService", "Supabase logout exception: ${e.message}")
             false
         }
     }

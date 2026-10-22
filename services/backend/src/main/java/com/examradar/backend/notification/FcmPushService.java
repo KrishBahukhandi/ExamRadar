@@ -66,7 +66,16 @@ public class FcmPushService {
                 if (fcmCredentialsJson != null && !fcmCredentialsJson.isBlank()) {
                     serviceAccountStream = new ByteArrayInputStream(fcmCredentialsJson.getBytes(StandardCharsets.UTF_8));
                 } else if (fcmCredentialsPath != null && !fcmCredentialsPath.isBlank()) {
-                    serviceAccountStream = new FileInputStream(fcmCredentialsPath);
+                    if (fcmCredentialsPath.startsWith("classpath:")) {
+                        serviceAccountStream = getClass().getClassLoader().getResourceAsStream(fcmCredentialsPath.substring(10));
+                    } else {
+                        serviceAccountStream = new FileInputStream(fcmCredentialsPath);
+                    }
+                } else {
+                    InputStream cp = getClass().getClassLoader().getResourceAsStream("firebase-service-account.json");
+                    if (cp != null) {
+                        serviceAccountStream = cp;
+                    }
                 }
 
                 if (serviceAccountStream != null) {

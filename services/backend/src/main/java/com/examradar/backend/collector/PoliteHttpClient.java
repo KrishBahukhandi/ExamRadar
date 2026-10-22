@@ -65,7 +65,36 @@ public class PoliteHttpClient {
         this.httpClient = client;
     }
 
+    private static final java.util.Set<String> ALLOWED_HOST_SUFFIXES = java.util.Set.of(
+            ".gov.in",
+            ".nic.in",
+            "ibps.in",
+            ".ibps.in",
+            ".nta.ac.in",
+            "nta.ac.in",
+            "digialm.com",
+            ".digialm.com",
+            "localhost",
+            "127.0.0.1"
+    );
+
+    public static boolean isAllowedHost(String host) {
+        if (host == null) return false;
+        String lowerHost = host.toLowerCase();
+        for (String suffix : ALLOWED_HOST_SUFFIXES) {
+            if (lowerHost.equals(suffix) || lowerHost.endsWith(suffix)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public HttpResponseData get(String url) throws Exception {
+        URI targetUri = URI.create(url);
+        if (!isAllowedHost(targetUri.getHost())) {
+            throw new SecurityException("PoliteHttpClient blocked outbound request to unauthorized host: " + targetUri.getHost());
+        }
+
         int maxRetries = 3;
         long backoffDelay = 1000;
         Exception lastException = null;

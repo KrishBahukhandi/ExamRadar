@@ -1,15 +1,19 @@
 package com.examradar.app.data.repository
 
+import android.util.Log
+import com.examradar.app.data.cache.OfflineDiskCache
 import com.examradar.app.data.fixture.DevelopmentNoticeFixtures
 import com.examradar.app.data.model.*
 import com.examradar.app.data.preferences.UserPreferences
 import com.examradar.app.data.preferences.UserPreferencesRepository
 import com.examradar.app.data.remote.ExamRadarApiClient
+import com.examradar.app.data.remote.UserPreferencesRemoteDto
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -55,11 +59,19 @@ interface ExamRadarRepository {
 class ExamRadarRepositoryImpl(
     private val preferencesRepository: UserPreferencesRepository,
     private val apiClient: ExamRadarApiClient = ExamRadarApiClient(),
-    private val authService: com.examradar.app.data.remote.SupabaseAuthService = com.examradar.app.data.remote.SupabaseAuthService()
+    private val authService: com.examradar.app.data.remote.SupabaseAuthService = com.examradar.app.data.remote.SupabaseAuthService(),
+    private val diskCache: OfflineDiskCache? = null
 ) : ExamRadarRepository {
 
-    private val completedChecklistItems = MutableStateFlow<Map<String, Set<String>>>(emptyMap())
-    private val liveNotices = MutableStateFlow<List<NoticeModel>>(DevelopmentNoticeFixtures.sampleNotices)
+    private val liveCategories = MutableStateFlow<List<CategoryModel>>(
+        diskCache?.loadCategories()?.takeIf { it.isNotEmpty() } ?: DevelopmentNoticeFixtures.categories
+    )
+    private val liveExams = MutableStateFlow<List<ExamModel>>(
+        diskCache?.loadExams()?.takeIf { it.isNotEmpty() } ?: DevelopmentNoticeFixtures.exams
+    )
+    private val liveNotices = MutableStateFlow<List<NoticeModel>>(
+        diskCache?.loadNotices()?.takeIf { it.isNotEmpty() } ?: DevelopmentNoticeFixtures.sampleNotices
+    )
 
     init {
         CoroutineScope(Dispatchers.IO).launch {
@@ -69,13 +81,29 @@ class ExamRadarRepositoryImpl(
 
     override suspend fun refreshNotices(): Boolean =
         kotlinx.coroutines.withContext(Dispatchers.IO) {
+            var anySuccess = false
+
+            val remoteCategories = apiClient.fetchCategories()
+            if (!remoteCategories.isNullOrEmpty()) {
+                liveCategories.value = remoteCategories
+                diskCache?.saveCategories(remoteCategories)
+                anySuccess = true
+            }
+
+            val remoteExams = apiClient.fetchExams()
+            if (!remoteExams.isNullOrEmpty()) {
+                liveExams.value = remoteExams
+                diskCache?.saveExams(remoteExams)
+                anySuccess = true
+            }
+
             val remote = apiClient.fetchNotices()
             if (!remote.isNullOrEmpty()) {
                 liveNotices.value = remote
-                true
-            } else {
-                false
+                diskCache?.saveNotices(remote)
+                anySuccess = true
             }
+            anySuccess
         }
 
     override fun getUserPreferences(): Flow<UserPreferences> =
@@ -108,15 +136,25 @@ class ExamRadarRepositoryImpl(
         notifyNew, notifyDeadlines, notifyResults, r7, r3, r1, push
     )
 
-    override suspend fun resetAllUserData() =
+    override suspend fun resetAllUserData() {
+        val token = getValidAuthToken()
+        if (token != null) {
+            try {
+                apiClient.deleteUserData(token)
+            } catch (e: Exception) {
+                Log.w("ExamRadarRepo", "Cloud user deletion error: ${e.message}")
+            }
+        }
+        diskCache?.clear()
         preferencesRepository.clearAllData()
+    }
 
     override fun getCategories(): Flow<List<CategoryModel>> =
-        MutableStateFlow(DevelopmentNoticeFixtures.categories)
+        liveCategories
 
     override fun getExams(categoryId: String?, searchQuery: String?): Flow<List<ExamModel>> =
-        combine(preferencesRepository.userPreferences, liveNotices) { prefs, notices ->
-            DevelopmentNoticeFixtures.exams
+        combine(preferencesRepository.userPreferences, liveExams, liveNotices) { prefs, allExams, notices ->
+            allExams
                 .filter { exam ->
                     val matchesCategory = categoryId == null || exam.categoryId == categoryId
                     val matchesSearch = searchQuery.isNullOrBlank() ||
@@ -139,10 +177,8 @@ class ExamRadarRepositoryImpl(
         }
 
     override fun getExamById(examId: String): Flow<ExamModel?> =
-        preferencesRepository.userPreferences.map { prefs ->
-            DevelopmentNoticeFixtures.exams.find { it.id == examId }?.let { exam ->
-                exam.copy(isFollowing = prefs.followedExams.contains(exam.id))
-            }
+        combine(preferencesRepository.userPreferences, liveExams) { prefs, exams ->
+            exams.find { it.id == examId }?.copy(isFollowing = prefs.followedExams.contains(examId))
         }
 
     override fun getNotices(
@@ -151,13 +187,13 @@ class ExamRadarRepositoryImpl(
         onlyApproachingDeadlines: Boolean,
         searchQuery: String?
     ): Flow<List<NoticeModel>> =
-        combine(preferencesRepository.userPreferences, liveNotices) { prefs, allNotices ->
+        combine(preferencesRepository.userPreferences, liveNotices, liveExams) { prefs, allNotices, allExams ->
             val now = LocalDate.now()
             allNotices
                 .filter { notice ->
                     val matchesType = typeFilter == null || notice.noticeType == typeFilter
                     val matchesCategory = categoryFilter == null || run {
-                        val exam = DevelopmentNoticeFixtures.exams.find { it.id == notice.examId }
+                        val exam = allExams.find { it.id == notice.examId }
                         exam?.categoryId == categoryFilter ||
                         (categoryFilter == "cat-ssc" && notice.organization.equals("SSC", ignoreCase = true)) ||
                         (categoryFilter == "cat-banking" && notice.organization.equals("IBPS", ignoreCase = true))
@@ -208,10 +244,9 @@ class ExamRadarRepositoryImpl(
     override fun getChecklist(examId: String): Flow<ChecklistModel> =
         combine(
             getExamById(examId),
-            completedChecklistItems
-        ) { exam, completedMap ->
+            preferencesRepository.getCompletedChecklistItems(examId)
+        ) { exam, completedKeys ->
             val examName = exam?.examName ?: "Examination"
-            val completedKeys = completedMap[examId] ?: emptySet()
             val standardItems = listOf(
                 ChecklistItemModel("item-notification", "Review official notification PDF & rules", completedKeys.contains("item-notification")),
                 ChecklistItemModel("item-eligibility", "Verify educational degree & age cut-off criteria", completedKeys.contains("item-eligibility")),
@@ -224,58 +259,109 @@ class ExamRadarRepositoryImpl(
         }
 
     override fun toggleChecklistItem(examId: String, itemKey: String) {
-        val current = completedChecklistItems.value.toMutableMap()
-        val itemsForExam = current[examId]?.toMutableSet() ?: mutableSetOf()
-        if (itemsForExam.contains(itemKey)) {
-            itemsForExam.remove(itemKey)
-        } else {
-            itemsForExam.add(itemKey)
+        CoroutineScope(Dispatchers.IO).launch {
+            val updatedKeys = preferencesRepository.toggleChecklistItem(examId, itemKey)
+            val token = getValidAuthToken()
+            if (token != null) {
+                // Best-effort sync to cloud
+                apiClient.updateChecklistItem(token, examId, itemKey, updatedKeys.contains(itemKey))
+            }
         }
-        current[examId] = itemsForExam
-        completedChecklistItems.value = current
     }
 
     override fun getSourceFreshness(): Flow<SourceFreshnessInfo> =
         liveNotices.map { list ->
             val hasLive = list.any { !it.isDemonstrationFixture }
-            if (hasLive) {
+            val lastSync = diskCache?.getLastSyncTimestamp() ?: 0L
+            val isCacheStale = diskCache?.isStale() ?: (!hasLive)
+            if (hasLive || lastSync > 0L) {
                 SourceFreshnessInfo(
-                    totalSources = 5,
-                    activeSources = 2,
-                    lastSuccessfulSync = System.currentTimeMillis(),
-                    isStale = false,
-                    statusMessage = "Live official feeds active: SSC & IBPS (${list.size} verified notices)"
+                    totalSources = 3,
+                    activeSources = 3,
+                    lastSuccessfulSync = if (lastSync > 0L) lastSync else System.currentTimeMillis(),
+                    isStale = isCacheStale,
+                    statusMessage = if (isCacheStale && lastSync > 0L) {
+                        val formattedTime = java.text.SimpleDateFormat("dd MMM, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date(lastSync))
+                        "Offline cache active • Last synced $formattedTime"
+                    } else {
+                        "Live official feeds active: UPSC, SSC & IBPS (${list.size} notices)"
+                    }
                 )
             } else {
                 SourceFreshnessInfo(
-                    totalSources = 5,
-                    activeSources = 5,
-                    lastSuccessfulSync = System.currentTimeMillis() - 1800000L,
-                    isStale = false,
-                    statusMessage = "All 5 official recruitment boards verified active"
+                    totalSources = 3,
+                    activeSources = 0,
+                    lastSuccessfulSync = 0L,
+                    isStale = true,
+                    statusMessage = "Offline cache active • Reconnecting to official feeds"
                 )
             }
         }
 
+    private suspend fun syncCloudState(token: String) {
+        try {
+            // 1. Restore & merge preferences
+            val cloudPrefs = apiClient.fetchUserPreferences(token)
+            val localPrefs = preferencesRepository.userPreferences.first()
+
+            val mergedExams = if (!cloudPrefs?.followedExamIds.isNullOrEmpty()) {
+                cloudPrefs!!.followedExamIds!!.toSet() + localPrefs.followedExams
+            } else {
+                localPrefs.followedExams
+            }
+
+            val mergedCategories = if (!cloudPrefs?.followedCategoryIds.isNullOrEmpty()) {
+                cloudPrefs!!.followedCategoryIds!!.toSet() + localPrefs.followedCategories
+            } else {
+                localPrefs.followedCategories
+            }
+
+            preferencesRepository.updateFollowedExams(mergedExams)
+            preferencesRepository.updateFollowedCategories(mergedCategories)
+
+            // Push merged state back to cloud
+            apiClient.syncPreferences(
+                token = token,
+                dto = UserPreferencesRemoteDto(
+                    followedExamIds = mergedExams.toList(),
+                    followedCategoryIds = mergedCategories.toList(),
+                    reminder7Days = cloudPrefs?.reminder7Days ?: localPrefs.reminder7Days,
+                    reminder3Days = cloudPrefs?.reminder3Days ?: localPrefs.reminder3Days,
+                    reminder1Day = cloudPrefs?.reminder1Day ?: localPrefs.reminder1Day,
+                    pushEnabled = cloudPrefs?.pushEnabled ?: localPrefs.pushEnabled,
+                    notifyNewNotices = true,
+                    notifyDeadlines = true,
+                    notifyResults = true
+                )
+            )
+
+            // 2. Restore cloud checklists
+            val cloudChecklists = apiClient.fetchChecklists(token)
+            cloudChecklists?.forEach { cl ->
+                val examId = cl.examId ?: return@forEach
+                val completedKeys = cl.items?.filter { it.isCompleted == true }?.map { it.itemKey }?.toSet() ?: emptySet()
+                if (completedKeys.isNotEmpty()) {
+                    preferencesRepository.setChecklistItems(examId, completedKeys)
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("ExamRadarRepository", "Error during cloud sync: ${e.message}")
+        }
+    }
+
     override suspend fun signUp(email: String, password: String, fullName: String): com.examradar.app.data.remote.AuthResult {
         val result = authService.signUp(email, password, fullName)
         if (result is com.examradar.app.data.remote.AuthResult.Success) {
+            val token = result.session.accessToken
             preferencesRepository.saveUserSession(
                 userId = result.session.user.id,
                 email = result.session.user.email,
                 fullName = result.session.user.fullName,
-                token = result.session.accessToken
+                token = token,
+                refreshToken = result.session.refreshToken
             )
-            val currentExams = preferencesRepository.userPreferences
-            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                currentExams.collect { prefs ->
-                    authService.syncPreferencesToBackend(
-                        token = result.session.accessToken,
-                        followedExams = prefs.followedExams,
-                        followedCategories = prefs.followedCategories
-                    )
-                }
-            }
+            syncCloudState(token)
+            registerDeviceTokenIfAvailable(token)
         }
         return result
     }
@@ -283,27 +369,81 @@ class ExamRadarRepositoryImpl(
     override suspend fun signIn(email: String, password: String): com.examradar.app.data.remote.AuthResult {
         val result = authService.signIn(email, password)
         if (result is com.examradar.app.data.remote.AuthResult.Success) {
+            val token = result.session.accessToken
             preferencesRepository.saveUserSession(
                 userId = result.session.user.id,
                 email = result.session.user.email,
                 fullName = result.session.user.fullName,
-                token = result.session.accessToken
+                token = token,
+                refreshToken = result.session.refreshToken
             )
-            val currentExams = preferencesRepository.userPreferences
-            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                currentExams.collect { prefs ->
-                    authService.syncPreferencesToBackend(
-                        token = result.session.accessToken,
-                        followedExams = prefs.followedExams,
-                        followedCategories = prefs.followedCategories
-                    )
-                }
-            }
+            syncCloudState(token)
+            registerDeviceTokenIfAvailable(token)
         }
         return result
     }
 
+    suspend fun getValidAuthToken(): String? {
+        val prefs = preferencesRepository.userPreferences.first()
+        val currentToken = prefs.authToken
+        val refreshToken = prefs.refreshToken
+
+        if (currentToken.isNullOrBlank()) {
+            return null
+        }
+
+        if (!refreshToken.isNullOrBlank() && isTokenExpired(currentToken)) {
+            val refreshResult = authService.refreshSession(refreshToken)
+            if (refreshResult is com.examradar.app.data.remote.AuthResult.Success) {
+                val newToken = refreshResult.session.accessToken
+                val newRefreshToken = refreshResult.session.refreshToken ?: refreshToken
+                preferencesRepository.updateAuthToken(newToken, newRefreshToken)
+                return newToken
+            }
+        }
+
+        return currentToken
+    }
+
+    private fun isTokenExpired(jwt: String): Boolean {
+        return try {
+            val parts = jwt.split(".")
+            if (parts.size != 3) return false
+            val payloadJson = String(
+                android.util.Base64.decode(
+                    parts[1],
+                    android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING or android.util.Base64.NO_WRAP
+                ),
+                Charsets.UTF_8
+            )
+            val exp = com.google.gson.JsonParser.parseString(payloadJson).asJsonObject.get("exp")?.asLong ?: return false
+            val nowSeconds = System.currentTimeMillis() / 1000
+            nowSeconds >= (exp - 60)
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun registerDeviceTokenIfAvailable(authToken: String) {
+        try {
+            com.google.firebase.messaging.FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    val fcmToken = task.result
+                    CoroutineScope(Dispatchers.IO).launch {
+                        apiClient.registerDeviceToken(authToken, fcmToken)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.d("ExamRadarRepo", "FirebaseMessaging not initialized: ${e.message}")
+        }
+    }
+
     override suspend fun signOut() {
+        val token = getValidAuthToken()
+        if (token != null) {
+            authService.logout(token)
+        }
         preferencesRepository.clearUserSession()
     }
 }

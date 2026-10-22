@@ -18,11 +18,11 @@ public class UserExamPreference {
     @JoinColumn(name = "user_id", nullable = false)
     private UserProfile user;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "exam_id")
     private Exam exam;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "category_id")
     private ExamCategory category;
 

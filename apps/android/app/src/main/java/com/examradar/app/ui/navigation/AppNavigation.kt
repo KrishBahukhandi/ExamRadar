@@ -41,7 +41,31 @@ fun AppNavigation(
     modifier: Modifier = Modifier
 ) {
     val navController = rememberNavController()
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    DisposableEffect(navController) {
+        val activity = context as? androidx.activity.ComponentActivity
+        val consumer = androidx.core.util.Consumer<android.content.Intent> { intent ->
+            navController.handleDeepLink(intent)
+        }
+        activity?.addOnNewIntentListener(consumer)
+        onDispose {
+            activity?.removeOnNewIntentListener(consumer)
+        }
+    }
+
     val userPrefs by repository.getUserPreferences().collectAsState(initial = null)
+
+    LaunchedEffect(userPrefs) {
+        if (userPrefs != null) {
+            val activity = context as? androidx.activity.ComponentActivity
+            val intent = activity?.intent
+            if (intent?.action == android.content.Intent.ACTION_VIEW && intent.data != null) {
+                navController.handleDeepLink(intent)
+                activity.intent = android.content.Intent(activity, com.examradar.app.MainActivity::class.java)
+            }
+        }
+    }
 
     if (userPrefs == null) {
         LoadingStateView()
@@ -178,7 +202,13 @@ fun AppNavigation(
             // Notice Details
             composable(
                 route = Screen.NoticeDetail.route,
-                arguments = listOf(navArgument("noticeId") { type = NavType.StringType })
+                arguments = listOf(navArgument("noticeId") { type = NavType.StringType }),
+                deepLinks = listOf(
+                    androidx.navigation.navDeepLink { uriPattern = "https://app.examradar.in/notices/{noticeId}" },
+                    androidx.navigation.navDeepLink { uriPattern = "https://app.examradar.in/notice/{noticeId}" },
+                    androidx.navigation.navDeepLink { uriPattern = "examradar://notices/{noticeId}" },
+                    androidx.navigation.navDeepLink { uriPattern = "examradar://notice/{noticeId}" }
+                )
             ) { backStackEntry ->
                 val noticeId = backStackEntry.arguments?.getString("noticeId") ?: ""
                 val detailViewModel = remember(noticeId) { NoticeDetailViewModel(repository, noticeId) }

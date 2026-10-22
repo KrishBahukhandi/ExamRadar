@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,8 +44,22 @@ class HomeViewModel(
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState = _uiState.asStateFlow()
 
+    var isRefreshing by mutableStateOf(false)
+        private set
+
     init {
         loadData()
+    }
+
+    fun refresh() {
+        viewModelScope.launch {
+            isRefreshing = true
+            try {
+                repository.refreshNotices()
+            } finally {
+                isRefreshing = false
+            }
+        }
     }
 
     fun loadData() {
@@ -144,14 +159,19 @@ fun HomeScreen(
             LoadingStateView(modifier = Modifier.padding(paddingValues))
         } else {
             val listState = rememberLazyListState()
-            LazyColumn(
-                state = listState,
+            PullToRefreshBox(
+                isRefreshing = viewModel.isRefreshing,
+                onRefresh = { viewModel.refresh() },
                 modifier = modifier
                     .fillMaxSize()
-                    .padding(paddingValues),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .padding(paddingValues)
             ) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
                 // Source Freshness Banner
                 uiState.freshnessInfo?.let { freshness ->
                     item(contentType = "banner") {
@@ -271,6 +291,7 @@ fun HomeScreen(
                 item(contentType = "footer") {
                     IndependenceDisclaimerBanner()
                 }
+            }
             }
         }
     }

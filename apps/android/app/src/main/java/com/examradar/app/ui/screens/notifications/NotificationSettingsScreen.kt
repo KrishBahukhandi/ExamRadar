@@ -109,9 +109,27 @@ fun NotificationSettingsScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                        contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+                    ) { isGranted ->
+                        viewModel.updateSettings(push = isGranted)
+                    }
+
                     Switch(
                         checked = prefs.pushEnabled,
-                        onCheckedChange = { viewModel.updateSettings(push = it) }
+                        onCheckedChange = { enabled ->
+                            if (enabled && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU &&
+                                androidx.core.content.ContextCompat.checkSelfPermission(
+                                    context,
+                                    android.Manifest.permission.POST_NOTIFICATIONS
+                                ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                            ) {
+                                permissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                            } else {
+                                viewModel.updateSettings(push = enabled)
+                            }
+                        }
                     )
                 }
             }

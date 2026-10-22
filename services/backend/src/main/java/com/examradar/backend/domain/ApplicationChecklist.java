@@ -20,7 +20,7 @@ public class ApplicationChecklist {
     @JoinColumn(name = "user_id", nullable = false)
     private UserProfile user;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "exam_id", nullable = false)
     private Exam exam;
 
@@ -30,7 +30,7 @@ public class ApplicationChecklist {
     @Column(columnDefinition = "TEXT")
     private String notes;
 
-    @OneToMany(mappedBy = "checklist", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "checklist", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<ApplicationChecklistItem> items = new ArrayList<>();
 
     @Column(name = "created_at", nullable = false, updatable = false)

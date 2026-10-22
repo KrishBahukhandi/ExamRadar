@@ -30,6 +30,8 @@ public class IngestionEngine {
     private final NoticeDateRepository dateRepository;
     private final ExamRepository examRepository;
     private final SourceHealthSnapshotRepository healthSnapshotRepository;
+    private final com.examradar.backend.notification.NotificationDispatcherService notificationDispatcherService;
+    private final com.examradar.backend.notification.DeadlineReminderScheduler deadlineReminderScheduler;
 
     public IngestionEngine(
             List<SourceAdapter> adapterList,
@@ -40,7 +42,9 @@ public class IngestionEngine {
             NoticeVersionRepository versionRepository,
             NoticeDateRepository dateRepository,
             ExamRepository examRepository,
-            SourceHealthSnapshotRepository healthSnapshotRepository
+            SourceHealthSnapshotRepository healthSnapshotRepository,
+            com.examradar.backend.notification.NotificationDispatcherService notificationDispatcherService,
+            com.examradar.backend.notification.DeadlineReminderScheduler deadlineReminderScheduler
     ) {
         this.adapters = adapterList.stream().collect(Collectors.toMap(SourceAdapter::getSourceId, a -> a));
         this.sourceRepository = sourceRepository;
@@ -51,6 +55,8 @@ public class IngestionEngine {
         this.dateRepository = dateRepository;
         this.examRepository = examRepository;
         this.healthSnapshotRepository = healthSnapshotRepository;
+        this.notificationDispatcherService = notificationDispatcherService;
+        this.deadlineReminderScheduler = deadlineReminderScheduler;
     }
 
     @Transactional
@@ -152,6 +158,7 @@ public class IngestionEngine {
                 versionRepository.save(version);
 
                 // Save Dates
+                LocalDate appDeadline = null;
                 for (ExtractedDateDto dateDto : noticeDto.importantDates()) {
                     NoticeDate noticeDate = new NoticeDate(
                             notice, dateDto.dateType(), dateDto.eventDate(),
@@ -159,6 +166,22 @@ public class IngestionEngine {
                             dateDto.originalDateStr(), dateDto.sourceTextSnippet()
                     );
                     dateRepository.save(noticeDate);
+                    if (dateDto.dateType() == com.examradar.backend.domain.enums.DateType.APPLICATION_DEADLINE) {
+                        appDeadline = dateDto.eventDate();
+                    }
+                }
+
+                // Automated Notification Dispatch for New Notice
+                if (initialStatus == NoticeStatus.PUBLISHED) {
+                    com.examradar.backend.domain.enums.NotificationEventType eventType =
+                            noticeDto.noticeType() == com.examradar.backend.domain.enums.NoticeType.RESULT
+                                    ? com.examradar.backend.domain.enums.NotificationEventType.RESULT_OUT
+                                    : com.examradar.backend.domain.enums.NotificationEventType.NEW_NOTICE;
+                    notificationDispatcherService.dispatchForNotice(notice, eventType, 1);
+
+                    if (appDeadline != null) {
+                        deadlineReminderScheduler.scheduleDeadlineReminders(notice, appDeadline);
+                    }
                 }
 
                 newNoticesCount++;
@@ -187,6 +210,19 @@ public class IngestionEngine {
                     existingNotice.setSummary(noticeDto.summary());
                     existingNotice.setUpdatedAt(OffsetDateTime.now());
                     noticeRepository.save(existingNotice);
+
+                    // Check for revised deadline
+                    LocalDate revisedDeadline = null;
+                    for (ExtractedDateDto dateDto : noticeDto.importantDates()) {
+                        if (dateDto.dateType() == com.examradar.backend.domain.enums.DateType.APPLICATION_DEADLINE) {
+                            revisedDeadline = dateDto.eventDate();
+                            break;
+                        }
+                    }
+                    if (revisedDeadline != null) {
+                        deadlineReminderScheduler.handleDeadlineRevision(existingNotice, revisedDeadline);
+                    }
+                    notificationDispatcherService.dispatchForNotice(existingNotice, com.examradar.backend.domain.enums.NotificationEventType.DEADLINE_REVISED, nextVersion);
 
                     revisedNoticesCount++;
                 }

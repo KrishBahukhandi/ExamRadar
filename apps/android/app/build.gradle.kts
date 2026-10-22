@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -19,6 +20,13 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        buildConfigField("String", "SUPABASE_URL", "\"https://qcdbjbattatozsuhwfyf.supabase.co\"")
+        buildConfigField(
+            "String",
+            "SUPABASE_ANON_KEY",
+            "\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjZGJqYmF0dGF0b3pzdWh3ZnlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwNjczMzIsImV4cCI6MjEwNzY0MzMzMn0.neMmoU8essGji3F1xDee1YPCFPJQDVX45vrhk89MEho\""
+        )
     }
 
     buildTypes {
@@ -28,6 +36,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            buildConfigField("String", "API_BASE_URL", "\"https://api.examradar.in\"")
+        }
+        debug {
+            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8085\"")
         }
     }
 
@@ -42,6 +54,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {
@@ -70,8 +83,9 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation("androidx.navigation:navigation-compose:2.8.3")
 
-    // Local Storage (DataStore & Room)
+    // Local Storage (DataStore & Room & EncryptedPrefs)
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
 
@@ -88,6 +102,10 @@ dependencies {
 
     // Custom Tabs for official links
     implementation("androidx.browser:browser:1.8.0")
+
+    // Firebase Cloud Messaging (Push Notifications)
+    implementation(platform("com.google.firebase:firebase-bom:33.5.1"))
+    implementation("com.google.firebase:firebase-messaging")
 
     // Testing
     testImplementation("junit:junit:4.13.2")

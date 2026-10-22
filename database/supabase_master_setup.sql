@@ -1,10 +1,10 @@
 -- ============================================================================
 -- ExamRadar India — Complete Supabase Database Master Setup
--- Project Reference: qcdbjbattatozsuhwyfm
--- Supabase REST URL: https://qcdbjbattatozsuhwyfm.supabase.co
+-- Project Reference: qcdbjbattatozsuhwfyf
+-- Supabase REST URL: https://qcdbjbattatozsuhwfyf.supabase.co
 --
 -- INSTRUCTIONS:
--- 1. Open your Supabase Dashboard: https://supabase.com/dashboard/project/qcdbjbattatozsuhwyfm
+-- 1. Open your Supabase Dashboard: https://supabase.com/dashboard/project/qcdbjbattatozsuhwfyf
 -- 2. In the left navigation, click "SQL Editor"
 -- 3. Click "New Query"
 -- 4. Paste this entire script into the editor and click "Run" (or Cmd+Enter / Ctrl+Enter)

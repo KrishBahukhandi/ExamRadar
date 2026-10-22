@@ -17,6 +17,9 @@ public interface NoticeDateRepository extends JpaRepository<NoticeDate, UUID> {
     List<NoticeDate> findByNoticeIdOrderByEventDateAsc(UUID noticeId);
     List<NoticeDate> findByEventDateBetweenOrderByEventDateAsc(LocalDate startDate, LocalDate endDate);
 
+    @Query("SELECT nd FROM NoticeDate nd WHERE nd.notice.id IN :noticeIds ORDER BY nd.eventDate ASC")
+    List<NoticeDate> findByNoticeIds(@Param("noticeIds") List<UUID> noticeIds);
+
     @Query("SELECT nd FROM NoticeDate nd WHERE nd.notice.status = 'PUBLISHED' " +
            "AND nd.eventDate >= :startDate AND nd.eventDate <= :endDate " +
            "ORDER BY nd.eventDate ASC")

@@ -22,12 +22,23 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.examradar.app.data.fixture.DevelopmentNoticeFixtures
+import com.examradar.app.data.model.CategoryModel
+import com.examradar.app.data.model.ExamModel
 import com.examradar.app.data.repository.ExamRadarRepository
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class OnboardingViewModel(
     private val repository: ExamRadarRepository
 ) : ViewModel() {
+
+    val categories: StateFlow<List<CategoryModel>> = repository.getCategories()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    val exams: StateFlow<List<ExamModel>> = repository.getExams()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     var selectedCategories by mutableStateOf(setOf("cat-upsc", "cat-ssc", "cat-banking"))
         private set
@@ -99,6 +110,15 @@ fun OnboardingScreen(
 ) {
     var currentStep by remember { mutableStateOf(1) }
     val scrollState = rememberScrollState()
+    val categories by viewModel.categories.collectAsState()
+    val exams by viewModel.exams.collectAsState()
+
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val notificationPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        viewModel.completeOnboarding(onComplete)
+    }
 
     Scaffold(
         bottomBar = {
@@ -130,7 +150,16 @@ fun OnboardingScreen(
                             if (currentStep < 3) {
                                 currentStep++
                             } else {
-                                viewModel.completeOnboarding(onComplete)
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU &&
+                                    androidx.core.content.ContextCompat.checkSelfPermission(
+                                        context,
+                                        android.Manifest.permission.POST_NOTIFICATIONS
+                                    ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                                ) {
+                                    notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                                } else {
+                                    viewModel.completeOnboarding(onComplete)
+                                }
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
@@ -181,8 +210,9 @@ fun OnboardingScreen(
 
             when (currentStep) {
                 1 -> {
-                    // Step 1: Categories
-                    DevelopmentNoticeFixtures.categories.forEach { category ->
+                    // Step 1: Categories (Database-driven)
+                    val displayCategories = if (categories.isNotEmpty()) categories else DevelopmentNoticeFixtures.categories
+                    displayCategories.forEach { category ->
                         val isSelected = viewModel.selectedCategories.contains(category.id)
                         CategorySelectionCard(
                             title = category.name,
@@ -194,8 +224,9 @@ fun OnboardingScreen(
                     }
                 }
                 2 -> {
-                    // Step 2: Specific Exams
-                    DevelopmentNoticeFixtures.exams.forEach { exam ->
+                    // Step 2: Specific Exams (Database-driven)
+                    val displayExams = if (exams.isNotEmpty()) exams else DevelopmentNoticeFixtures.exams
+                    displayExams.forEach { exam ->
                         val isSelected = viewModel.selectedExams.contains(exam.id)
                         ExamSelectionCard(
                             examName = exam.examName,

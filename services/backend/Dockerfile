@@ -18,7 +18,7 @@ RUN mvn clean package -DskipTests -B
 # ==============================================================================
 FROM eclipse-temurin:17-jre-alpine
 
-LABEL maintainer="Bahukhandi Labs <dev@examradar.in>"
+LABEL maintainer="Krish Bahukhandi <dev@examradar.in>"
 LABEL description="ExamRadar India Backend & Ingestion Engine"
 
 # Create unprivileged system group and user

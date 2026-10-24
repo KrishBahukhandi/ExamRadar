@@ -94,5 +94,5 @@ We may periodically update this Privacy Policy to reflect technical enhancements
 If you have any questions, feedback, or data privacy requests, please contact our Data Protection Officer:
 
 - **Email:** privacy@examradar.in
-- **Maintainer:** Bahukhandi Labs
+- **Maintainer:** Krish Bahukhandi
 - **Official Website:** [https://examradar.in](https://examradar.in)

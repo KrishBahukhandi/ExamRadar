@@ -2,7 +2,7 @@
 > **Official Examination & Recruitment Portal Tracker for Indian Aspirants**  
 > *Zero Ads • Zero Test Series Upselling • 100% Verified Official Sources*
 
-[![ExamRadar CI](https://github.com/examradar/examradar/actions/workflows/ci.yml/badge.svg)](https://github.com/examradar/examradar/actions/workflows/ci.yml)
+[![ExamRadar CI](https://github.com/KrishBahukhandi/ExamRadar/actions/workflows/ci.yml/badge.svg)](https://github.com/KrishBahukhandi/ExamRadar/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Android Min SDK](https://img.shields.io/badge/Android-8.0%2B%20(API%2026%2B)-brightgreen.svg)](apps/android)
 [![Java 17](https://img.shields.io/badge/Java-17-orange.svg)](services/backend)
@@ -161,8 +161,8 @@ ExamRadar/
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/examradar/examradar.git
-   cd examradar/services/backend
+   git clone https://github.com/KrishBahukhandi/ExamRadar.git
+   cd ExamRadar/services/backend
    ```
 
 2. **Configure Environment Variables:**

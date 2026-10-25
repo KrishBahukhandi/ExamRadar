@@ -43,6 +43,7 @@ data class AuthUiState(
     val email: String = "",
     val password: String = "",
     val isPasswordVisible: Boolean = false,
+    val agreedToTerms: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val isSuccess: Boolean = false
@@ -74,6 +75,10 @@ class AuthViewModel(
         _uiState.value = _uiState.value.copy(password = password, errorMessage = null)
     }
 
+    fun onTermsAcceptedChange(accepted: Boolean) {
+        _uiState.value = _uiState.value.copy(agreedToTerms = accepted, errorMessage = null)
+    }
+
     fun togglePasswordVisibility() {
         _uiState.value = _uiState.value.copy(isPasswordVisible = !_uiState.value.isPasswordVisible)
     }
@@ -95,6 +100,11 @@ class AuthViewModel(
 
         if (password.length < 6) {
             _uiState.value = state.copy(errorMessage = "Password must be at least 6 characters")
+            return
+        }
+
+        if (state.isSignUpMode && !state.agreedToTerms) {
+            _uiState.value = state.copy(errorMessage = "Please accept the Terms of Service & Privacy Policy to create an account")
             return
         }
 
@@ -333,6 +343,25 @@ fun AuthScreen(
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
+
+            if (uiState.isSignUpMode) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = uiState.agreedToTerms,
+                        onCheckedChange = viewModel::onTermsAcceptedChange
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "I accept the Terms of Service & Privacy Policy (IT Act 2008 & Play Store policy compliant)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
 

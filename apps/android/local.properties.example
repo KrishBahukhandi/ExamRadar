@@ -1,0 +1,22 @@
+# ============================================================
+# ExamRadar Android — Local Development Properties
+# ============================================================
+# Copy this file to local.properties and fill in real values.
+# local.properties is gitignored and MUST NEVER be committed.
+# ============================================================
+
+# Android SDK path (set automatically by Android Studio)
+sdk.dir=/Users/YOUR_USERNAME/Library/Android/sdk
+
+# ─── Supabase ────────────────────────────────────────────────
+SUPABASE_URL=https://qcdbjbattatozsuhwfyf.supabase.co
+SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY_HERE
+
+# ─── Release Signing ─────────────────────────────────────────
+# Path to the .jks keystore file (absolute path, outside the repo)
+# Generate with: keytool -genkey -v -keystore examradar-release.jks \
+#   -keyalg RSA -keysize 2048 -validity 10000 -alias examradar
+RELEASE_STORE_FILE=/path/to/examradar-release.jks
+RELEASE_STORE_PASSWORD=YOUR_KEYSTORE_PASSWORD
+RELEASE_KEY_ALIAS=examradar
+RELEASE_KEY_PASSWORD=YOUR_KEY_PASSWORD

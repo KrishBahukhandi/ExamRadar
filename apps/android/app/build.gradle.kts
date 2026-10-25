@@ -1,8 +1,17 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.gms.google-services")
+}
+
+// ─── Load signing credentials from local.properties (never committed to git) ───
+val localProps = Properties()
+val localPropsFile = rootProject.file("local.properties")
+if (localPropsFile.exists()) {
+    localPropsFile.inputStream().use { localProps.load(it) }
 }
 
 android {
@@ -21,24 +30,56 @@ android {
             useSupportLibrary = true
         }
 
-        buildConfigField("String", "SUPABASE_URL", "\"https://qcdbjbattatozsuhwfyf.supabase.co\"")
-        buildConfigField(
-            "String",
-            "SUPABASE_ANON_KEY",
-            "\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjZGJqYmF0dGF0b3pzdWh3ZnlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwNjczMzIsImV4cCI6MjEwNzY0MzMzMn0.neMmoU8essGji3F1xDee1YPCFPJQDVX45vrhk89MEho\""
-        )
+        // Supabase config read from local.properties or environment — never hardcoded
+        val supabaseUrl = localProps.getProperty("SUPABASE_URL")
+            ?: System.getenv("SUPABASE_URL")
+            ?: ""
+        val supabaseAnonKey = localProps.getProperty("SUPABASE_ANON_KEY")
+            ?: System.getenv("SUPABASE_ANON_KEY")
+            ?: ""
+
+        buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
+    }
+
+    // ─── Release signing configuration ───────────────────────────────────────────
+    signingConfigs {
+        create("release") {
+            // Read from local.properties for local builds, or env vars in CI
+            val storeFilePath = localProps.getProperty("RELEASE_STORE_FILE")
+                ?: System.getenv("RELEASE_STORE_FILE")
+            val storePass = localProps.getProperty("RELEASE_STORE_PASSWORD")
+                ?: System.getenv("RELEASE_STORE_PASSWORD")
+            val keyAlias = localProps.getProperty("RELEASE_KEY_ALIAS")
+                ?: System.getenv("RELEASE_KEY_ALIAS")
+            val keyPass = localProps.getProperty("RELEASE_KEY_PASSWORD")
+                ?: System.getenv("RELEASE_KEY_PASSWORD")
+
+            if (storeFilePath != null && storePass != null && keyAlias != null && keyPass != null) {
+                storeFile = file(storeFilePath)
+                storePassword = storePass
+                this.keyAlias = keyAlias
+                keyPassword = keyPass
+            }
+        }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
             buildConfigField("String", "API_BASE_URL", "\"https://api.examradar.in\"")
+            val releaseSigning = signingConfigs.getByName("release")
+            if (releaseSigning.storeFile?.exists() == true) {
+                signingConfig = releaseSigning
+            }
         }
         debug {
+            isMinifyEnabled = false
             buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8085\"")
         }
     }

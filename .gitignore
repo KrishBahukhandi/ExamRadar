@@ -23,18 +23,26 @@ local.properties
 .cxx/
 captures/
 
-# Secrets and environment files
+# Secrets and environment files — NEVER commit real credentials
 .env
 .env.*
 *.local.env
+
+# Android signing keystores — keep outside the repo
 *.keystore
 *.jks
 *.key
 *.pem
+
+# Firebase credentials — inject via env var at runtime
 **/google-services.json
-*firebase*.json
-*-firebase-adminsdk-*.json
-firebase-service-account.json
+**/*firebase*.json
+**/*-firebase-adminsdk-*.json
+**/firebase-service-account.json
+**/service-account.json
+**/gcloud-credentials.json
+
+# Supabase / cloud credentials
 supabase-keys.json
 private-key.pem
 
@@ -45,3 +53,4 @@ logs/
 # Test reports
 test-output/
 jacoco/
+

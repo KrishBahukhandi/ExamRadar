@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "in.examradar.app",
+      "sha256_cert_fingerprints": [
+        "A0:D4:42:15:2B:A3:DF:6B:43:0E:C3:FF:16:FE:5E:2A:68:5A:25:22:98:C6:FB:5E:FE:09:A6:CF:BE:84:8D:18"
+      ]
+    }
+  }
+]

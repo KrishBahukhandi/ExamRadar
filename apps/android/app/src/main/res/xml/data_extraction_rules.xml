@@ -2,8 +2,10 @@
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="sharedpref" path="secure_auth.xml"/>
+        <exclude domain="file" path="datastore/examradar_user_prefs.preferences_pb"/>
     </cloud-backup>
     <device-backup>
         <exclude domain="sharedpref" path="secure_auth.xml"/>
+        <exclude domain="file" path="datastore/examradar_user_prefs.preferences_pb"/>
     </device-backup>
 </data-extraction-rules>

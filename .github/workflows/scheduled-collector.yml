@@ -24,6 +24,13 @@ jobs:
           java-version: '17'
           cache: 'maven'
 
+      - name: Validate Required Secrets
+        run: |
+          if [ -z "${{ secrets.SPRING_DATASOURCE_PASSWORD }}" ]; then
+            echo "::error::GitHub Secret SPRING_DATASOURCE_PASSWORD is not configured. Please add it under Repository Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
       - name: Execute Source Collector
         env:
           SPRING_DATASOURCE_URL: ${{ secrets.SPRING_DATASOURCE_URL }}

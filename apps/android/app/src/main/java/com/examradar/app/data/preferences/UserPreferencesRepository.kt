@@ -82,13 +82,14 @@ class UserPreferencesRepository(private val context: Context) {
         } catch (e: Exception) {
             Log.w("UserPreferencesRepo", "Error reading encrypted token", e)
             null
-        } ?: prefs[Keys.AUTH_TOKEN]
+        }
 
         val secureRefreshToken = try {
             securePrefs?.getString("refresh_token", null)
         } catch (e: Exception) {
+            Log.w("UserPreferencesRepo", "Error reading encrypted refresh token", e)
             null
-        } ?: prefs[Keys.REFRESH_TOKEN]
+        }
 
         UserPreferences(
             isOnboardingCompleted = prefs[Keys.ONBOARDING_COMPLETED] ?: false,
@@ -195,10 +196,13 @@ class UserPreferencesRepository(private val context: Context) {
             val editor = securePrefs?.edit()?.putString("auth_token", token)
             if (refreshToken != null) editor?.putString("refresh_token", refreshToken)
             editor?.apply()
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            Log.e("UserPreferencesRepo", "Failed to write encrypted auth token", e)
+        }
+        // Purge any legacy plaintext tokens from DataStore so secrets are never in plaintext
         context.dataStore.edit { prefs ->
-            prefs[Keys.AUTH_TOKEN] = token
-            if (refreshToken != null) prefs[Keys.REFRESH_TOKEN] = refreshToken
+            prefs.remove(Keys.AUTH_TOKEN)
+            prefs.remove(Keys.REFRESH_TOKEN)
         }
     }
 

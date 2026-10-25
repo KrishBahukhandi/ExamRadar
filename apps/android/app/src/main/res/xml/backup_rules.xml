@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
+    <!-- Exclude encrypted credential storage -->
     <exclude domain="sharedpref" path="secure_auth.xml"/>
+    <!-- Exclude user preferences datastore from cloud backup to prevent session leakage -->
+    <exclude domain="file" path="datastore/examradar_user_prefs.preferences_pb"/>
 </full-backup-content>

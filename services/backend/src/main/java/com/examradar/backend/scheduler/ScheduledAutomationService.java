@@ -6,6 +6,7 @@ import com.examradar.backend.notification.FcmPushService;
 import com.examradar.backend.repository.SourceRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -46,6 +47,7 @@ public class ScheduledAutomationService {
      * Runs every 1 hour (3600000 ms) with a 2-minute initial delay on server start.
      */
     @Scheduled(fixedDelayString = "${examradar.collector.scheduled-interval-ms:3600000}", initialDelayString = "${examradar.collector.initial-delay-ms:300000}")
+    @SchedulerLock(name = "ScheduledAutomationService_runScheduledSourceIngestion", lockAtMostFor = "PT25M", lockAtLeastFor = "PT2M")
     public void runScheduledSourceIngestion() {
         if (!autoScrapeEnabled) {
             log.debug("Automated source scraping is disabled via configuration.");
@@ -81,6 +83,7 @@ public class ScheduledAutomationService {
      * Runs every 60 seconds with an initial delay of 30 seconds.
      */
     @Scheduled(fixedDelayString = "${examradar.notification.process-interval-ms:60000}", initialDelay = 30000)
+    @SchedulerLock(name = "ScheduledAutomationService_runScheduledPushNotificationProcessing", lockAtMostFor = "PT50S", lockAtLeastFor = "PT10S")
     public void runScheduledPushNotificationProcessing() {
         if (!autoPushEnabled) {
             return;

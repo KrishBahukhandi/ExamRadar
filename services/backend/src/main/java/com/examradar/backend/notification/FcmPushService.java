@@ -97,8 +97,11 @@ public class FcmPushService {
         }
     }
 
+    @Value("${examradar.notification.batch-size:100}")
+    private int batchSize;
+
     /**
-     * Processes all pending notification jobs due for execution.
+     * Processes all pending notification jobs due for execution with bounded batch sizing.
      */
     @Transactional
     public int processDueNotificationJobs() {
@@ -109,10 +112,14 @@ public class FcmPushService {
             return 0;
         }
 
-        log.info("Processing {} due notification jobs", dueJobs.size());
+        List<NotificationJob> batchToProcess = dueJobs.size() > batchSize
+                ? dueJobs.subList(0, batchSize)
+                : dueJobs;
+
+        log.info("Processing {} due notification jobs (bounded from {} pending)", batchToProcess.size(), dueJobs.size());
         int successCount = 0;
 
-        for (NotificationJob job : dueJobs) {
+        for (NotificationJob job : batchToProcess) {
             boolean sent = sendPushForJob(job);
             if (sent) {
                 successCount++;
@@ -146,7 +153,8 @@ public class FcmPushService {
         String title = formatNotificationTitle(job.getEventType(), examName);
         String body = formatNotificationBody(job.getEventType(), notice);
 
-        boolean allSucceeded = true;
+        List<NotificationDelivery> deliveriesToSave = new java.util.ArrayList<>();
+        List<DeviceToken> tokensToUpdate = new java.util.ArrayList<>();
 
         for (DeviceToken tokenEntity : deviceTokens) {
             String token = tokenEntity.getToken();
@@ -170,10 +178,10 @@ public class FcmPushService {
                     NotificationDelivery delivery = new NotificationDelivery(
                             job, tokenEntity, providerResponseId, com.examradar.backend.domain.enums.DeliveryStatus.ACCEPTED, null
                     );
-                    deliveryRepository.save(delivery);
+                    deliveriesToSave.add(delivery);
 
                     tokenEntity.setLastUsedAt(OffsetDateTime.now());
-                    deviceTokenRepository.save(tokenEntity);
+                    tokensToUpdate.add(tokenEntity);
 
                 } catch (FirebaseMessagingException fme) {
                     allSucceeded = false;
@@ -183,25 +191,25 @@ public class FcmPushService {
                     if (fme.getMessagingErrorCode() == MessagingErrorCode.UNREGISTERED ||
                         fme.getMessagingErrorCode() == MessagingErrorCode.INVALID_ARGUMENT) {
                         tokenEntity.setIsActive(false);
-                        deviceTokenRepository.save(tokenEntity);
+                        tokensToUpdate.add(tokenEntity);
                         log.info("Deactivated invalid device token [{}]", tokenEntity.getId());
 
                         NotificationDelivery delivery = new NotificationDelivery(
                                 job, tokenEntity, null, com.examradar.backend.domain.enums.DeliveryStatus.INVALID_TOKEN, fme.getMessage()
                         );
-                        deliveryRepository.save(delivery);
+                        deliveriesToSave.add(delivery);
                     } else {
                         NotificationDelivery delivery = new NotificationDelivery(
                                 job, tokenEntity, null, com.examradar.backend.domain.enums.DeliveryStatus.FAILED, fme.getMessage()
                         );
-                        deliveryRepository.save(delivery);
+                        deliveriesToSave.add(delivery);
                     }
                 } catch (Exception ex) {
                     allSucceeded = false;
                     NotificationDelivery delivery = new NotificationDelivery(
                             job, tokenEntity, null, com.examradar.backend.domain.enums.DeliveryStatus.FAILED, ex.getMessage()
                     );
-                    deliveryRepository.save(delivery);
+                    deliveriesToSave.add(delivery);
                 }
             } else {
                 // Simulated push delivery for local dev / zero-cost mode
@@ -212,11 +220,18 @@ public class FcmPushService {
                 NotificationDelivery delivery = new NotificationDelivery(
                         job, tokenEntity, simResponseId, com.examradar.backend.domain.enums.DeliveryStatus.ACCEPTED, null
                 );
-                deliveryRepository.save(delivery);
+                deliveriesToSave.add(delivery);
 
                 tokenEntity.setLastUsedAt(OffsetDateTime.now());
-                deviceTokenRepository.save(tokenEntity);
+                tokensToUpdate.add(tokenEntity);
             }
+        }
+
+        if (!deliveriesToSave.isEmpty()) {
+            deliveryRepository.saveAll(deliveriesToSave);
+        }
+        if (!tokensToUpdate.isEmpty()) {
+            deviceTokenRepository.saveAll(tokensToUpdate);
         }
 
         if (allSucceeded) {

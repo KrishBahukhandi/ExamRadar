@@ -12,6 +12,8 @@ import com.examradar.backend.dto.NoticeVersionDto;
 import com.examradar.backend.repository.NoticeDateRepository;
 import com.examradar.backend.repository.NoticeRepository;
 import com.examradar.backend.repository.NoticeVersionRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,23 +44,14 @@ public class NoticeService {
 
     public List<NoticeDto> getNotices(String examId, NoticeType noticeType, NoticeStatus status, String search) {
         NoticeStatus effectiveStatus = (status != null) ? status : NoticeStatus.PUBLISHED;
+        String searchParam = (search != null && !search.isBlank()) ? search.trim() : null;
+        String examParam = (examId != null && !examId.isBlank()) ? examId.trim() : null;
+
         List<Notice> notices;
-        if (examId != null && !examId.isBlank()) {
-            notices = noticeRepository.findByExamIdAndStatus(examId, effectiveStatus);
-        } else {
+        if (examParam == null && noticeType == null && searchParam == null && status == null) {
             notices = noticeRepository.findByStatusOrderByPublishedDateDesc(effectiveStatus);
-        }
-
-        if (noticeType != null) {
-            notices = notices.stream().filter(n -> n.getNoticeType() == noticeType).toList();
-        }
-
-        if (search != null && !search.isBlank()) {
-            String q = search.toLowerCase();
-            notices = notices.stream()
-                    .filter(n -> n.getTitle().toLowerCase().contains(q) ||
-                                 (n.getSummary() != null && n.getSummary().toLowerCase().contains(q)))
-                    .toList();
+        } else {
+            notices = noticeRepository.findFiltered(examParam, noticeType, effectiveStatus, searchParam);
         }
 
         if (notices.isEmpty()) {
@@ -71,6 +64,24 @@ public class NoticeService {
                 .collect(Collectors.groupingBy(d -> d.getNotice().getId()));
 
         return notices.stream().map(n -> toDto(n, datesByNoticeId.getOrDefault(n.getId(), List.of()))).toList();
+    }
+
+    public Page<NoticeDto> getNotices(String examId, NoticeType noticeType, NoticeStatus status, String search, Pageable pageable) {
+        NoticeStatus effectiveStatus = (status != null) ? status : NoticeStatus.PUBLISHED;
+        String searchParam = (search != null && !search.isBlank()) ? search.trim() : null;
+        String examParam = (examId != null && !examId.isBlank()) ? examId.trim() : null;
+
+        Page<Notice> page = noticeRepository.findFiltered(examParam, noticeType, effectiveStatus, searchParam, pageable);
+        if (page.isEmpty()) {
+            return Page.empty(pageable);
+        }
+
+        List<UUID> ids = page.getContent().stream().map(Notice::getId).toList();
+        List<NoticeDate> allDates = dateRepository.findByNoticeIds(ids);
+        Map<UUID, List<NoticeDate>> datesByNoticeId = allDates.stream()
+                .collect(Collectors.groupingBy(d -> d.getNotice().getId()));
+
+        return page.map(n -> toDto(n, datesByNoticeId.getOrDefault(n.getId(), List.of())));
     }
 
     public NoticeDto getNoticeById(UUID id) {

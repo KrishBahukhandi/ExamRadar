@@ -32,4 +32,31 @@ public interface NoticeRepository extends JpaRepository<Notice, UUID> {
             @Param("noticeType") NoticeType noticeType,
             Pageable pageable
     );
+
+    @Query("SELECT n FROM Notice n WHERE (:status IS NULL OR n.status = :status) " +
+           "AND (:examId IS NULL OR n.exam.id = :examId) " +
+           "AND (:noticeType IS NULL OR n.noticeType = :noticeType) " +
+           "AND (:search IS NULL OR LOWER(n.title) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "     OR (n.summary IS NOT NULL AND LOWER(n.summary) LIKE LOWER(CONCAT('%', :search, '%')))) " +
+           "ORDER BY n.publishedDate DESC")
+    List<Notice> findFiltered(
+            @Param("examId") String examId,
+            @Param("noticeType") NoticeType noticeType,
+            @Param("status") NoticeStatus status,
+            @Param("search") String search
+    );
+
+    @Query("SELECT n FROM Notice n WHERE (:status IS NULL OR n.status = :status) " +
+           "AND (:examId IS NULL OR n.exam.id = :examId) " +
+           "AND (:noticeType IS NULL OR n.noticeType = :noticeType) " +
+           "AND (:search IS NULL OR LOWER(n.title) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "     OR (n.summary IS NOT NULL AND LOWER(n.summary) LIKE LOWER(CONCAT('%', :search, '%')))) " +
+           "ORDER BY n.publishedDate DESC")
+    Page<Notice> findFiltered(
+            @Param("examId") String examId,
+            @Param("noticeType") NoticeType noticeType,
+            @Param("status") NoticeStatus status,
+            @Param("search") String search,
+            Pageable pageable
+    );
 }

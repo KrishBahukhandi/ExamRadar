@@ -11,13 +11,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Coordinates notification generation when notices are extracted, revised, or published.
- * Enforces user preferences, exam following rules, and strict idempotency.
+ * Enforces user preferences, exam following rules, and strict idempotency using batch database queries.
  */
 @Service
 public class NotificationDispatcherService {
@@ -43,7 +42,7 @@ public class NotificationDispatcherService {
 
     /**
      * Dispatches notification jobs for users following the exam associated with this notice.
-     * Generates a deterministic idempotency key to prevent duplicate delivery.
+     * Uses batch queries to eliminate N+1 roundtrips and generates deterministic idempotency keys.
      */
     @Transactional
     public List<NotificationJob> dispatchForNotice(Notice notice, NotificationEventType eventType, int versionNumber) {
@@ -66,40 +65,67 @@ public class NotificationDispatcherService {
             preferences = userExamPreferenceRepository.findByExamIdAndNotifyNewNoticesTrue(examId);
         }
 
-        List<NotificationJob> createdJobs = new ArrayList<>();
+        if (preferences.isEmpty()) {
+            log.info("No candidate preferences found following exam [{}] for event [{}]", examId, eventType);
+            return List.of();
+        }
 
-        for (UserExamPreference pref : preferences) {
-            UserProfile user = pref.getUser();
-            if (user == null) continue;
+        // 1. Batch collect all unique candidate users
+        List<UserProfile> candidateUsers = preferences.stream()
+                .map(UserExamPreference::getUser)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
 
-            // Check global notification preference
-            Optional<NotificationPreference> userNotifPref = notificationPreferenceRepository.findByUserId(user.getId());
-            if (userNotifPref.isPresent() && !userNotifPref.get().getPushEnabled()) {
+        if (candidateUsers.isEmpty()) {
+            return List.of();
+        }
+
+        List<UUID> userIds = candidateUsers.stream().map(UserProfile::getId).toList();
+
+        // 2. Batch fetch global notification preferences in a single query
+        Set<UUID> pushDisabledUserIds = notificationPreferenceRepository.findByUserIdIn(userIds).stream()
+                .filter(p -> Boolean.FALSE.equals(p.getPushEnabled()))
+                .map(p -> p.getUser().getId())
+                .collect(Collectors.toSet());
+
+        // 3. Filter eligible users and compute idempotency keys
+        Map<String, UserProfile> userByIdempotencyKey = new HashMap<>();
+        for (UserProfile user : candidateUsers) {
+            if (pushDisabledUserIds.contains(user.getId())) {
                 log.debug("Push disabled for user [{}], skipping notification job", user.getId());
                 continue;
             }
 
-            // Generate deterministic idempotency key: sha256(userId + ":" + noticeId + ":" + eventType + ":v" + versionNumber)
             String rawKey = user.getId().toString() + ":" + notice.getId().toString() + ":" + eventType.name() + ":v" + versionNumber;
             String idempotencyKey = PoliteHttpClient.computeSha256(rawKey);
-
-            // Verify idempotency
-            if (notificationJobRepository.findByIdempotencyKey(idempotencyKey).isPresent()) {
-                log.debug("Idempotent notification job already exists for key [{}]", idempotencyKey);
-                continue;
-            }
-
-            NotificationJob job = new NotificationJob(
-                    idempotencyKey,
-                    user,
-                    notice,
-                    eventType,
-                    OffsetDateTime.now()
-            );
-
-            NotificationJob savedJob = notificationJobRepository.save(job);
-            createdJobs.add(savedJob);
+            userByIdempotencyKey.put(idempotencyKey, user);
         }
+
+        if (userByIdempotencyKey.isEmpty()) {
+            log.info("All candidates have push disabled for exam [{}] notice [{}]", examId, notice.getId());
+            return List.of();
+        }
+
+        // 4. Batch query existing jobs by idempotency keys in a single query
+        Set<String> existingKeys = notificationJobRepository.findByIdempotencyKeyIn(userByIdempotencyKey.keySet()).stream()
+                .map(NotificationJob::getIdempotencyKey)
+                .collect(Collectors.toSet());
+
+        // 5. Construct jobs for newly eligible keys
+        List<NotificationJob> jobsToSave = new ArrayList<>();
+        OffsetDateTime now = OffsetDateTime.now();
+        for (Map.Entry<String, UserProfile> entry : userByIdempotencyKey.entrySet()) {
+            String key = entry.getKey();
+            if (!existingKeys.contains(key)) {
+                jobsToSave.add(new NotificationJob(key, entry.getValue(), notice, eventType, now));
+            } else {
+                log.debug("Idempotent notification job already exists for key [{}]", key);
+            }
+        }
+
+        // 6. Batch save all created jobs in a single roundtrip
+        List<NotificationJob> createdJobs = jobsToSave.isEmpty() ? List.of() : notificationJobRepository.saveAll(jobsToSave);
 
         // Record high-level audit event
         NotificationEvent event = new NotificationEvent(
@@ -110,7 +136,7 @@ public class NotificationDispatcherService {
         );
         notificationEventRepository.save(event);
 
-        log.info("Dispatched {} notification jobs for notice [{}]", createdJobs.size(), notice.getId());
+        log.info("Batch dispatched {} notification jobs for notice [{}]", createdJobs.size(), notice.getId());
         return createdJobs;
     }
 }

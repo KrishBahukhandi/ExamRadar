@@ -41,30 +41,43 @@ class OfflineDiskCache(private val cacheDir: File) {
         val examsCount: Int = 0
     )
 
+    private val memoryNotices = java.util.concurrent.atomic.AtomicReference<List<NoticeModel>?>()
+    private val memoryExams = java.util.concurrent.atomic.AtomicReference<List<ExamModel>?>()
+    private val memoryCategories = java.util.concurrent.atomic.AtomicReference<List<CategoryModel>?>()
+
     fun saveNotices(notices: List<NoticeModel>) {
+        memoryNotices.set(notices)
         writeAtomic(noticesFile, gson.toJson(notices))
         updateMeta(noticesCount = notices.size)
     }
 
     fun loadNotices(): List<NoticeModel>? {
-        return readSafely(noticesFile, object : TypeToken<List<NoticeModel>>() {}.type)
+        return memoryNotices.get() ?: readSafely<List<NoticeModel>>(noticesFile, object : TypeToken<List<NoticeModel>>() {}.type)?.also {
+            memoryNotices.set(it)
+        }
     }
 
     fun saveExams(exams: List<ExamModel>) {
+        memoryExams.set(exams)
         writeAtomic(examsFile, gson.toJson(exams))
         updateMeta(examsCount = exams.size)
     }
 
     fun loadExams(): List<ExamModel>? {
-        return readSafely(examsFile, object : TypeToken<List<ExamModel>>() {}.type)
+        return memoryExams.get() ?: readSafely<List<ExamModel>>(examsFile, object : TypeToken<List<ExamModel>>() {}.type)?.also {
+            memoryExams.set(it)
+        }
     }
 
     fun saveCategories(categories: List<CategoryModel>) {
+        memoryCategories.set(categories)
         writeAtomic(categoriesFile, gson.toJson(categories))
     }
 
     fun loadCategories(): List<CategoryModel>? {
-        return readSafely(categoriesFile, object : TypeToken<List<CategoryModel>>() {}.type)
+        return memoryCategories.get() ?: readSafely<List<CategoryModel>>(categoriesFile, object : TypeToken<List<CategoryModel>>() {}.type)?.also {
+            memoryCategories.set(it)
+        }
     }
 
     fun getLastSyncTimestamp(): Long {
@@ -92,6 +105,9 @@ class OfflineDiskCache(private val cacheDir: File) {
     }
 
     fun clear() {
+        memoryNotices.set(null)
+        memoryExams.set(null)
+        memoryCategories.set(null)
         try {
             noticesFile.delete()
             examsFile.delete()

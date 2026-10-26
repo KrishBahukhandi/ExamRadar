@@ -1,21 +1,22 @@
 package com.examradar.backend.collector;
 
-import com.examradar.backend.domain.*;
-import com.examradar.backend.domain.enums.NoticeStatus;
-import com.examradar.backend.domain.enums.VerificationStatus;
-import com.examradar.backend.repository.*;
+import com.examradar.backend.domain.Source;
+import com.examradar.backend.repository.SourceRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+/**
+ * Orchestrates the official exam notice ingestion pipeline across registered source adapters.
+ * Separates external network I/O from database transactions to prevent HikariCP connection starvation.
+ */
 @Service
 public class IngestionEngine {
 
@@ -23,43 +24,57 @@ public class IngestionEngine {
 
     private final Map<String, SourceAdapter> adapters;
     private final SourceRepository sourceRepository;
-    private final SourceFetchRunRepository fetchRunRepository;
-    private final SourceDocumentRepository documentRepository;
-    private final NoticeRepository noticeRepository;
-    private final NoticeVersionRepository versionRepository;
-    private final NoticeDateRepository dateRepository;
-    private final ExamRepository examRepository;
-    private final SourceHealthSnapshotRepository healthSnapshotRepository;
-    private final com.examradar.backend.notification.NotificationDispatcherService notificationDispatcherService;
-    private final com.examradar.backend.notification.DeadlineReminderScheduler deadlineReminderScheduler;
+    private final IngestionPersistenceService persistenceService;
 
+    @Autowired
     public IngestionEngine(
             List<SourceAdapter> adapterList,
             SourceRepository sourceRepository,
-            SourceFetchRunRepository fetchRunRepository,
-            SourceDocumentRepository documentRepository,
-            NoticeRepository noticeRepository,
-            NoticeVersionRepository versionRepository,
-            NoticeDateRepository dateRepository,
-            ExamRepository examRepository,
-            SourceHealthSnapshotRepository healthSnapshotRepository,
-            com.examradar.backend.notification.NotificationDispatcherService notificationDispatcherService,
-            com.examradar.backend.notification.DeadlineReminderScheduler deadlineReminderScheduler
+            IngestionPersistenceService persistenceService
     ) {
         this.adapters = adapterList.stream().collect(Collectors.toMap(SourceAdapter::getSourceId, a -> a));
         this.sourceRepository = sourceRepository;
-        this.fetchRunRepository = fetchRunRepository;
-        this.documentRepository = documentRepository;
-        this.noticeRepository = noticeRepository;
-        this.versionRepository = versionRepository;
-        this.dateRepository = dateRepository;
-        this.examRepository = examRepository;
-        this.healthSnapshotRepository = healthSnapshotRepository;
-        this.notificationDispatcherService = notificationDispatcherService;
-        this.deadlineReminderScheduler = deadlineReminderScheduler;
+        this.persistenceService = persistenceService;
     }
 
-    @Transactional
+    /**
+     * Backwards-compatible constructor for testing environments.
+     */
+    public IngestionEngine(
+            List<SourceAdapter> adapterList,
+            SourceRepository sourceRepository,
+            com.examradar.backend.repository.SourceFetchRunRepository fetchRunRepository,
+            com.examradar.backend.repository.SourceDocumentRepository documentRepository,
+            com.examradar.backend.repository.NoticeRepository noticeRepository,
+            com.examradar.backend.repository.NoticeVersionRepository versionRepository,
+            com.examradar.backend.repository.NoticeDateRepository dateRepository,
+            com.examradar.backend.repository.ExamRepository examRepository,
+            com.examradar.backend.repository.SourceHealthSnapshotRepository healthSnapshotRepository,
+            com.examradar.backend.notification.NotificationDispatcherService notificationDispatcherService,
+            com.examradar.backend.notification.DeadlineReminderScheduler deadlineReminderScheduler
+    ) {
+        this(
+                adapterList,
+                sourceRepository,
+                new IngestionPersistenceService(
+                        sourceRepository,
+                        fetchRunRepository,
+                        documentRepository,
+                        noticeRepository,
+                        versionRepository,
+                        dateRepository,
+                        examRepository,
+                        healthSnapshotRepository,
+                        notificationDispatcherService,
+                        deadlineReminderScheduler
+                )
+        );
+    }
+
+    /**
+     * Executes official source ingestion without holding a long-running database transaction.
+     * Network fetching is executed non-transactionally; persistence is isolated to IngestionPersistenceService.
+     */
     public IngestionSummary runIngestionForSource(String sourceId) {
         log.info("Starting source ingestion for [{}]", sourceId);
         Optional<Source> sourceOpt = sourceRepository.findById(sourceId);
@@ -80,189 +95,24 @@ public class IngestionEngine {
             return new IngestionSummary(sourceId, false, 0, 0, "No adapter registered");
         }
 
+        // --- NETWORK I/O EXECUTED OUTSIDE ANY TRANSACTION ---
         source.setLastAttemptedFetch(OffsetDateTime.now());
         ExtractionResult result = adapter.fetchAndExtract(source, source.getLastSuccessfulContentHash());
 
-        // Record fetch run
-        SourceFetchRun run = new SourceFetchRun(
-                source,
-                result.isSuccessful() ? (result.contentChanged() ? "SUCCESS" : "NO_CHANGE") : "FAILED",
-                result.httpStatus(),
-                result.responseTimeMs(),
-                result.contentHash(),
-                result.errorMessage()
-        );
-        fetchRunRepository.save(run);
-
         if (!result.isSuccessful()) {
-            source.setConsecutiveFailures(source.getConsecutiveFailures() + 1);
-            source.setLastErrorMessage(result.errorMessage());
-            sourceRepository.save(source);
+            persistenceService.recordFailedRun(source, result);
             log.error("Ingestion failed for [{}]: {}", sourceId, result.errorMessage());
             return new IngestionSummary(sourceId, false, 0, 0, result.errorMessage());
         }
 
-        source.setConsecutiveFailures(0);
-        source.setLastSuccessfulFetch(OffsetDateTime.now());
-        source.setLastSuccessfulContentHash(result.contentHash());
-        sourceRepository.save(source);
-
         if (!result.contentChanged()) {
+            persistenceService.recordUnchangedRun(source, result);
             log.info("Source content unchanged for [{}] (SHA-256 match).", sourceId);
             return new IngestionSummary(sourceId, true, 0, 0, "Content unchanged");
         }
 
-        int newNoticesCount = 0;
-        int revisedNoticesCount = 0;
-
-        for (ExtractedNoticeDto noticeDto : result.notices()) {
-            Optional<Notice> existingNoticeOpt = noticeRepository.findByOfficialNoticeUrl(noticeDto.officialNoticeUrl());
-
-            if (existingNoticeOpt.isEmpty()) {
-                // New Notice
-                Optional<Exam> examOpt = examRepository.findById(noticeDto.examId());
-                Exam exam = examOpt.orElseGet(() -> examRepository.findAll().stream().findFirst().orElse(null));
-                if (exam == null) continue;
-
-                // Validate Temporal Constraints & Quarantine
-                NoticeStatus initialStatus = validateAndDetermineStatus(noticeDto);
-                VerificationStatus initialVerification = initialStatus == NoticeStatus.VALIDATION_REQUIRED ?
-                        VerificationStatus.QUARANTINED : VerificationStatus.VERIFIED;
-
-                Notice notice = new Notice(
-                        exam,
-                        source,
-                        noticeDto.noticeType(),
-                        noticeDto.title(),
-                        noticeDto.summary(),
-                        noticeDto.officialNoticeUrl(),
-                        noticeDto.officialApplyUrl(),
-                        initialStatus,
-                        noticeDto.publishedDate(),
-                        initialVerification
-                );
-                notice = noticeRepository.save(notice);
-
-                // Save Document Snapshot
-                SourceDocument doc = new SourceDocument(
-                        source, run, noticeDto.officialNoticeUrl(), "HTML",
-                        noticeDto.contentHash(), noticeDto.summary()
-                );
-                doc = documentRepository.save(doc);
-
-                // Save Initial Notice Version (v1)
-                NoticeVersion version = new NoticeVersion(
-                        notice, 1, doc, noticeDto.contentHash(),
-                        "Initial detected publication", "{}"
-                );
-                versionRepository.save(version);
-
-                // Save Dates
-                LocalDate appDeadline = null;
-                for (ExtractedDateDto dateDto : noticeDto.importantDates()) {
-                    NoticeDate noticeDate = new NoticeDate(
-                            notice, dateDto.dateType(), dateDto.eventDate(),
-                            dateDto.isTentative(), dateDto.isRevised(),
-                            dateDto.originalDateStr(), dateDto.sourceTextSnippet()
-                    );
-                    dateRepository.save(noticeDate);
-                    if (dateDto.dateType() == com.examradar.backend.domain.enums.DateType.APPLICATION_DEADLINE) {
-                        appDeadline = dateDto.eventDate();
-                    }
-                }
-
-                // Automated Notification Dispatch for New Notice
-                if (initialStatus == NoticeStatus.PUBLISHED) {
-                    com.examradar.backend.domain.enums.NotificationEventType eventType =
-                            noticeDto.noticeType() == com.examradar.backend.domain.enums.NoticeType.RESULT
-                                    ? com.examradar.backend.domain.enums.NotificationEventType.RESULT_OUT
-                                    : com.examradar.backend.domain.enums.NotificationEventType.NEW_NOTICE;
-                    notificationDispatcherService.dispatchForNotice(notice, eventType, 1);
-
-                    if (appDeadline != null) {
-                        deadlineReminderScheduler.scheduleDeadlineReminders(notice, appDeadline);
-                    }
-                }
-
-                newNoticesCount++;
-            } else {
-                // Notice Exists: Check for revisions
-                Notice existingNotice = existingNoticeOpt.get();
-                List<NoticeVersion> versions = versionRepository.findByNoticeIdOrderByVersionNumberDesc(existingNotice.getId());
-                NoticeVersion latestVersion = versions.isEmpty() ? null : versions.get(0);
-
-                if (latestVersion == null || !latestVersion.getContentHash().equals(noticeDto.contentHash())) {
-                    int nextVersion = (latestVersion == null ? 0 : latestVersion.getVersionNumber()) + 1;
-
-                    SourceDocument doc = new SourceDocument(
-                            source, run, noticeDto.officialNoticeUrl(), "HTML",
-                            noticeDto.contentHash(), noticeDto.summary()
-                    );
-                    doc = documentRepository.save(doc);
-
-                    NoticeVersion newVer = new NoticeVersion(
-                            existingNotice, nextVersion, doc, noticeDto.contentHash(),
-                            "Revised official announcement", "{}"
-                    );
-                    versionRepository.save(newVer);
-
-                    existingNotice.setTitle(noticeDto.title());
-                    existingNotice.setSummary(noticeDto.summary());
-                    existingNotice.setUpdatedAt(OffsetDateTime.now());
-                    noticeRepository.save(existingNotice);
-
-                    // Check for revised deadline
-                    LocalDate revisedDeadline = null;
-                    for (ExtractedDateDto dateDto : noticeDto.importantDates()) {
-                        if (dateDto.dateType() == com.examradar.backend.domain.enums.DateType.APPLICATION_DEADLINE) {
-                            revisedDeadline = dateDto.eventDate();
-                            break;
-                        }
-                    }
-                    if (revisedDeadline != null) {
-                        deadlineReminderScheduler.handleDeadlineRevision(existingNotice, revisedDeadline);
-                    }
-                    notificationDispatcherService.dispatchForNotice(existingNotice, com.examradar.backend.domain.enums.NotificationEventType.DEADLINE_REVISED, nextVersion);
-
-                    revisedNoticesCount++;
-                }
-            }
-        }
-
-        // Record Health Snapshot
-        SourceHealthSnapshot snapshot = new SourceHealthSnapshot(
-                source, 1, 1, 0, result.responseTimeMs(), 0
-        );
-        healthSnapshotRepository.save(snapshot);
-
-        log.info("Ingestion completed for [{}]: {} new notices, {} revised.", sourceId, newNoticesCount, revisedNoticesCount);
-        return new IngestionSummary(sourceId, true, newNoticesCount, revisedNoticesCount, "Success");
-    }
-
-    private NoticeStatus validateAndDetermineStatus(ExtractedNoticeDto noticeDto) {
-        LocalDate openDate = null;
-        LocalDate closeDate = null;
-
-        for (ExtractedDateDto d : noticeDto.importantDates()) {
-            if (d.dateType() == com.examradar.backend.domain.enums.DateType.APPLICATION_START) {
-                openDate = d.eventDate();
-            }
-            if (d.dateType() == com.examradar.backend.domain.enums.DateType.APPLICATION_DEADLINE) {
-                closeDate = d.eventDate();
-            }
-        }
-
-        // Temporal Consistency Check: deadline must not precede opening date
-        if (openDate != null && closeDate != null && closeDate.isBefore(openDate)) {
-            log.warn("Quarantining notice [{}]: deadline {} precedes opening date {}", noticeDto.title(), closeDate, openDate);
-            return NoticeStatus.VALIDATION_REQUIRED;
-        }
-
-        if (noticeDto.parserConfidence() < 0.70) {
-            return NoticeStatus.VALIDATION_REQUIRED;
-        }
-
-        return NoticeStatus.PUBLISHED;
+        // --- SHORT-LIVED TRANSACTION EXCLUSIVELY FOR PERSISTENCE ---
+        return persistenceService.persistSuccessfulIngestion(source, result);
     }
 
     public record IngestionSummary(

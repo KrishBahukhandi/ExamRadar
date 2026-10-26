@@ -18,7 +18,30 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
-interface ExamRadarRepository {
+/**
+ * Segregated repository contracts adhering to Interface Segregation Principle (ISP).
+ * Enables modular testing, independent ViewModel scoping, and future multi-module migration.
+ */
+interface NoticeRepository {
+    fun getNotices(
+        typeFilter: NoticeType? = null,
+        categoryFilter: String? = null,
+        onlyApproachingDeadlines: Boolean = false,
+        searchQuery: String? = null
+    ): Flow<List<NoticeModel>>
+    fun getNoticeById(noticeId: String): Flow<NoticeModel?>
+    fun getCalendarEvents(): Flow<List<CalendarEventModel>>
+    fun getSourceFreshness(): Flow<SourceFreshnessInfo>
+    suspend fun refreshNotices(): Boolean
+}
+
+interface ExamCatalogRepository {
+    fun getCategories(): Flow<List<CategoryModel>>
+    fun getExams(categoryId: String? = null, searchQuery: String? = null): Flow<List<ExamModel>>
+    fun getExamById(examId: String): Flow<ExamModel?>
+}
+
+interface UserPreferencesDomainRepository {
     fun getUserPreferences(): Flow<UserPreferences>
     suspend fun setOnboardingCompleted(completed: Boolean)
     suspend fun updateFollowedCategories(categories: Set<String>)
@@ -35,26 +58,24 @@ interface ExamRadarRepository {
         push: Boolean
     )
     suspend fun resetAllUserData()
+}
 
-    fun getCategories(): Flow<List<CategoryModel>>
-    fun getExams(categoryId: String? = null, searchQuery: String? = null): Flow<List<ExamModel>>
-    fun getExamById(examId: String): Flow<ExamModel?>
-    fun getNotices(
-        typeFilter: NoticeType? = null,
-        categoryFilter: String? = null,
-        onlyApproachingDeadlines: Boolean = false,
-        searchQuery: String? = null
-    ): Flow<List<NoticeModel>>
-    fun getNoticeById(noticeId: String): Flow<NoticeModel?>
-    fun getCalendarEvents(): Flow<List<CalendarEventModel>>
+interface ChecklistRepository {
     fun getChecklist(examId: String): Flow<ChecklistModel>
     fun toggleChecklistItem(examId: String, itemKey: String)
-    fun getSourceFreshness(): Flow<SourceFreshnessInfo>
-    suspend fun refreshNotices(): Boolean
+}
+
+interface AuthRepository {
     suspend fun signUp(email: String, password: String, fullName: String): com.examradar.app.data.remote.AuthResult
     suspend fun signIn(email: String, password: String): com.examradar.app.data.remote.AuthResult
     suspend fun signOut()
 }
+
+/**
+ * Composite repository contract combining domain sub-repositories.
+ * Preserves binary compatibility with existing ViewModel factories.
+ */
+interface ExamRadarRepository : NoticeRepository, ExamCatalogRepository, UserPreferencesDomainRepository, ChecklistRepository, AuthRepository
 
 class ExamRadarRepositoryImpl(
     private val preferencesRepository: UserPreferencesRepository,

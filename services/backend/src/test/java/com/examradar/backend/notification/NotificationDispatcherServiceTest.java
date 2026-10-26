@@ -63,19 +63,19 @@ class NotificationDispatcherServiceTest {
         when(userExamPreferenceRepository.findByExamIdAndNotifyNewNoticesTrue("exam-ibps-po"))
                 .thenReturn(List.of(pref1, pref2));
 
-        when(notificationPreferenceRepository.findByUserId(any(UUID.class)))
-                .thenReturn(Optional.empty()); // Defaults to push enabled
+        when(notificationPreferenceRepository.findByUserIdIn(any()))
+                .thenReturn(List.of()); // Defaults to push enabled for all
 
-        when(notificationJobRepository.findByIdempotencyKey(anyString()))
-                .thenReturn(Optional.empty()); // No existing job
+        when(notificationJobRepository.findByIdempotencyKeyIn(any()))
+                .thenReturn(List.of()); // No existing jobs
 
-        when(notificationJobRepository.save(any(NotificationJob.class)))
+        when(notificationJobRepository.saveAll(any()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         List<NotificationJob> jobs = dispatcherService.dispatchForNotice(notice, NotificationEventType.NEW_NOTICE, 1);
 
         assertEquals(2, jobs.size());
-        verify(notificationJobRepository, times(2)).save(any(NotificationJob.class));
+        verify(notificationJobRepository, times(1)).saveAll(any());
         verify(notificationEventRepository, times(1)).save(any(NotificationEvent.class));
     }
 
@@ -96,12 +96,12 @@ class NotificationDispatcherServiceTest {
 
         when(userExamPreferenceRepository.findByExamIdAndNotifyNewNoticesTrue("exam-ibps-po"))
                 .thenReturn(List.of(pref));
-        when(notificationPreferenceRepository.findByUserId(user.getId()))
-                .thenReturn(Optional.of(notifPref));
+        when(notificationPreferenceRepository.findByUserIdIn(any()))
+                .thenReturn(List.of(notifPref));
 
         List<NotificationJob> jobs = dispatcherService.dispatchForNotice(notice, NotificationEventType.NEW_NOTICE, 1);
 
         assertTrue(jobs.isEmpty(), "Should not create jobs for users with push disabled");
-        verify(notificationJobRepository, never()).save(any(NotificationJob.class));
+        verify(notificationJobRepository, never()).saveAll(any());
     }
 }

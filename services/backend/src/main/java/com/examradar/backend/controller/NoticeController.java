@@ -8,6 +8,8 @@ import com.examradar.backend.dto.NoticeVersionDto;
 import com.examradar.backend.service.NoticeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -30,9 +32,13 @@ public class NoticeController {
             @RequestParam(required = false) String examId,
             @RequestParam(required = false) NoticeType noticeType,
             @RequestParam(required = false) NoticeStatus status,
-            @RequestParam(required = false) String search
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false, defaultValue = "0") int page,
+            @RequestParam(required = false, defaultValue = "50") int size
     ) {
-        return ApiResponse.ok(noticeService.getNotices(examId, noticeType, status, search));
+        int boundedSize = Math.min(Math.max(size, 1), 100);
+        Pageable pageable = PageRequest.of(Math.max(page, 0), boundedSize);
+        return ApiResponse.ok(noticeService.getNotices(examId, noticeType, status, search, pageable).getContent());
     }
 
     @GetMapping("/{id}")

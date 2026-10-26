@@ -45,7 +45,7 @@ public class ScheduledAutomationService {
      * Periodically runs ingestion across all active official gazette sources (UPSC, SSC, IBPS).
      * Runs every 1 hour (3600000 ms) with a 2-minute initial delay on server start.
      */
-    @Scheduled(fixedDelayString = "${examradar.collector.scheduled-interval-ms:3600000}", initialDelay = 120000)
+    @Scheduled(fixedDelayString = "${examradar.collector.scheduled-interval-ms:3600000}", initialDelayString = "${examradar.collector.initial-delay-ms:300000}")
     public void runScheduledSourceIngestion() {
         if (!autoScrapeEnabled) {
             log.debug("Automated source scraping is disabled via configuration.");

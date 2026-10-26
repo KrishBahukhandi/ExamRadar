@@ -32,6 +32,7 @@ data class HomeUiState(
     val followedExamsCount: Int = 0,
     val approachingDeadlines: List<NoticeModel> = emptyList(),
     val notices: List<NoticeModel> = emptyList(),
+    val categories: List<CategoryModel> = emptyList(),
     val freshnessInfo: SourceFreshnessInfo? = null,
     val selectedCategoryFilter: String? = null,
     val errorMessage: String? = null
@@ -68,6 +69,12 @@ class HomeViewModel(
 
             launch {
                 repository.refreshNotices()
+            }
+
+            launch {
+                repository.getCategories().collectLatest { cats ->
+                    _uiState.value = _uiState.value.copy(categories = cats)
+                }
             }
 
             launch {
@@ -234,32 +241,21 @@ fun HomeScreen(
                                     label = { Text("All Goals") }
                                 )
                             }
-                            item {
-                                FilterChip(
-                                    selected = uiState.selectedCategoryFilter == "cat-upsc",
-                                    onClick = { viewModel.selectCategoryFilter("cat-upsc") },
-                                    label = { Text("UPSC") }
+                            val displayCategories = if (uiState.categories.isNotEmpty()) {
+                                uiState.categories.map { it.id to it.name }
+                            } else {
+                                listOf(
+                                    "cat-upsc" to "UPSC",
+                                    "cat-ssc" to "SSC",
+                                    "cat-banking" to "Banking",
+                                    "cat-regulatory" to "Regulatory"
                                 )
                             }
-                            item {
+                            items(displayCategories) { (catId, catName) ->
                                 FilterChip(
-                                    selected = uiState.selectedCategoryFilter == "cat-ssc",
-                                    onClick = { viewModel.selectCategoryFilter("cat-ssc") },
-                                    label = { Text("SSC") }
-                                )
-                            }
-                            item {
-                                FilterChip(
-                                    selected = uiState.selectedCategoryFilter == "cat-banking",
-                                    onClick = { viewModel.selectCategoryFilter("cat-banking") },
-                                    label = { Text("Banking") }
-                                )
-                            }
-                            item {
-                                FilterChip(
-                                    selected = uiState.selectedCategoryFilter == "cat-regulatory",
-                                    onClick = { viewModel.selectCategoryFilter("cat-regulatory") },
-                                    label = { Text("Regulatory") }
+                                    selected = uiState.selectedCategoryFilter == catId,
+                                    onClick = { viewModel.selectCategoryFilter(catId) },
+                                    label = { Text(catName) }
                                 )
                             }
                         }

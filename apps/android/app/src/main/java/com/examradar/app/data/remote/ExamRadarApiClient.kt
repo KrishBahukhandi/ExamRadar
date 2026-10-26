@@ -188,8 +188,13 @@ class ExamRadarApiClient(
 
     fun createChecklist(token: String, examId: String): ChecklistRemoteDto? {
         return try {
+            val url = "$baseUrl/api/v1/me/checklists".toHttpUrlOrNull()
+                ?.newBuilder()
+                ?.addQueryParameter("examId", examId)
+                ?.build() ?: return null
+
             val request = Request.Builder()
-                .url("$baseUrl/api/v1/me/checklists?examId=$examId")
+                .url(url)
                 .header("Authorization", "Bearer $token")
                 .post("{}".toRequestBody(jsonMediaType))
                 .build()
@@ -208,8 +213,13 @@ class ExamRadarApiClient(
 
     fun updateChecklistItem(token: String, checklistId: String, itemKey: String, isCompleted: Boolean): Boolean {
         return try {
+            val url = "$baseUrl/api/v1/me/checklists/$checklistId/items/$itemKey".toHttpUrlOrNull()
+                ?.newBuilder()
+                ?.addQueryParameter("isCompleted", isCompleted.toString())
+                ?.build() ?: return false
+
             val request = Request.Builder()
-                .url("$baseUrl/api/v1/me/checklists/$checklistId/items/$itemKey?isCompleted=$isCompleted")
+                .url(url)
                 .header("Authorization", "Bearer $token")
                 .patch("{}".toRequestBody(jsonMediaType))
                 .build()

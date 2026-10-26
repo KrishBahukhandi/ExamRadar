@@ -98,22 +98,26 @@ object ExamRadarNotificationManager {
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
 
-        // Action button: View Official PDF/Notice if URL present
+        // Action button: View Official PDF/Notice if valid HTTP/HTTPS URL present
         if (!officialNoticeUrl.isNullOrBlank()) {
-            val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse(officialNoticeUrl)).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            val parsedUri = Uri.parse(officialNoticeUrl)
+            val scheme = parsedUri.scheme?.lowercase()
+            if (scheme == "https" || scheme == "http") {
+                val webIntent = Intent(Intent.ACTION_VIEW, parsedUri).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                val webPendingIntent = PendingIntent.getActivity(
+                    context,
+                    notificationId + 10000,
+                    webIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                builder.addAction(
+                    android.R.drawable.ic_menu_view,
+                    "Official Notice",
+                    webPendingIntent
+                )
             }
-            val webPendingIntent = PendingIntent.getActivity(
-                context,
-                notificationId + 10000,
-                webIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            builder.addAction(
-                android.R.drawable.ic_menu_view,
-                "Official Notice",
-                webPendingIntent
-            )
         }
 
         try {

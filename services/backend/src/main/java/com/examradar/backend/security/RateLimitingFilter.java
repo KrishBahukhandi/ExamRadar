@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * In-memory sliding window rate limiter filter that protects backend endpoints
  * against denial-of-service, abuse, and connection pool exhaustion.
+ * Keys on authenticated token prefix or verified remote IP to prevent header spoofing.
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 5)
@@ -36,6 +37,9 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 
     @Value("${examradar.security.ratelimit.admin-per-minute:30}")
     private int adminRequestsPerMinute;
+
+    @Value("${examradar.security.ratelimit.trust-forwarded-for:false}")
+    private boolean trustForwardedFor;
 
     private static class WindowCounter {
         final long windowStartMs;
@@ -58,14 +62,14 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
 
         // Skip rate limiting for static assets, swagger docs, and actuator health checks
-        if (path.startsWith("/swagger-ui") || path.startsWith("/v3/api-docs") || path.startsWith("/actuator/health")) {
+        if (path.startsWith("/swagger-ui") || path.startsWith("/v3/api-docs") || path.startsWith("/actuator/health") || path.startsWith("/.well-known")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String clientIp = extractClientIp(request);
+        String clientIdentifier = extractClientIdentifier(request);
         int limit = path.startsWith("/api/v1/admin") ? adminRequestsPerMinute : defaultRequestsPerMinute;
-        String bucketKey = clientIp + ":" + (path.startsWith("/api/v1/admin") ? "admin" : "api");
+        String bucketKey = clientIdentifier + ":" + (path.startsWith("/api/v1/admin") ? "admin" : "api");
 
         long now = System.currentTimeMillis();
         long windowSizeMs = 60_000L;
@@ -84,8 +88,8 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         }
 
         if (counter.count.get() > limit) {
-            log.warn("Rate limit exceeded for IP [{}] on path [{}]: {} reqs (limit: {})",
-                    clientIp, path, counter.count.get(), limit);
+            log.warn("Rate limit exceeded for [{}] on path [{}]: {} reqs (limit: {})",
+                    clientIdentifier, path, counter.count.get(), limit);
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setHeader("Retry-After", "60");
@@ -100,11 +104,18 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         requestCounts.entrySet().removeIf(entry -> (now - entry.getValue().windowStartMs) > (windowSizeMs * 2));
     }
 
-    private String extractClientIp(HttpServletRequest request) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.isBlank()) {
-            return forwarded.split(",")[0].trim();
+    private String extractClientIdentifier(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ") && authHeader.length() > 20) {
+            return "user:" + authHeader.substring(7, Math.min(authHeader.length(), 40));
         }
-        return request.getRemoteAddr();
+
+        if (trustForwardedFor) {
+            String forwarded = request.getHeader("X-Forwarded-For");
+            if (forwarded != null && !forwarded.isBlank()) {
+                return "ip:" + forwarded.split(",")[0].trim();
+            }
+        }
+        return "ip:" + request.getRemoteAddr();
     }
 }

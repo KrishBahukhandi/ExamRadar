@@ -11,15 +11,18 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.UUID;
 
 /**
  * Validates X-Admin-Api-Key header for trusted administrative endpoints and scheduled workers.
+ * Uses constant-time comparison to prevent timing attacks.
  */
 @Component
 public class AdminApiKeyFilter extends OncePerRequestFilter {
 
-    @Value("${examradar.security.admin-api-key:${examradar.admin.api-key:examradar-admin-secret-dev}}")
+    @Value("${examradar.security.admin-api-key:${examradar.admin.api-key:}}")
     private String adminApiKey;
 
     @Override
@@ -28,7 +31,7 @@ public class AdminApiKeyFilter extends OncePerRequestFilter {
 
         String requestApiKey = request.getHeader("X-Admin-Api-Key");
 
-        if (requestApiKey != null && !requestApiKey.isBlank() && requestApiKey.equals(adminApiKey)) {
+        if (requestApiKey != null && !requestApiKey.isBlank() && isValidApiKey(requestApiKey)) {
             AuthenticatedUser adminUser = new AuthenticatedUser(
                     UUID.fromString("00000000-0000-0000-0000-000000000001"),
                     "admin@examradar.in",
@@ -41,5 +44,14 @@ public class AdminApiKeyFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private boolean isValidApiKey(String candidate) {
+        if (adminApiKey == null || adminApiKey.isBlank()) {
+            return false;
+        }
+        byte[] candidateBytes = candidate.getBytes(StandardCharsets.UTF_8);
+        byte[] actualBytes = adminApiKey.getBytes(StandardCharsets.UTF_8);
+        return MessageDigest.isEqual(candidateBytes, actualBytes);
     }
 }

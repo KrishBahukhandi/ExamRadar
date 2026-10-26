@@ -5,6 +5,7 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -16,6 +17,8 @@ import java.time.Duration;
 public class PdfTextExtractor {
 
     private static final int MAX_PAGES = 30;
+    private static final int MAX_PDF_BYTES = 25 * 1024 * 1024; // 25 MB limit to prevent heap exhaustion
+
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(15))
             .followRedirects(HttpClient.Redirect.NORMAL)
@@ -35,8 +38,9 @@ public class PdfTextExtractor {
             throw new RuntimeException("Failed to download PDF. HTTP status: " + response.statusCode());
         }
 
-        try (InputStream in = response.body();
-             PDDocument document = Loader.loadPDF(in.readAllBytes())) {
+        byte[] pdfBytes = readBoundedStream(response.body(), MAX_PDF_BYTES);
+
+        try (PDDocument document = Loader.loadPDF(pdfBytes)) {
 
             if (document.isEncrypted()) {
                 throw new RuntimeException("PDF document is encrypted / password protected.");
@@ -53,6 +57,16 @@ public class PdfTextExtractor {
             }
 
             return text;
+        }
+    }
+
+    private byte[] readBoundedStream(InputStream in, int maxBytes) throws IOException {
+        try (in) {
+            byte[] data = in.readNBytes(maxBytes + 1);
+            if (data.length > maxBytes) {
+                throw new IllegalArgumentException("PDF document exceeds maximum allowed download size of " + (maxBytes / (1024 * 1024)) + "MB");
+            }
+            return data;
         }
     }
 }

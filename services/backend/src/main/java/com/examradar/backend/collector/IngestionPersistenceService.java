@@ -6,8 +6,10 @@ import com.examradar.backend.domain.enums.NoticeStatus;
 import com.examradar.backend.domain.enums.NotificationEventType;
 import com.examradar.backend.domain.enums.VerificationStatus;
 import com.examradar.backend.repository.*;
+import com.examradar.backend.config.CacheConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -62,6 +64,7 @@ public class IngestionPersistenceService {
     }
 
     @Transactional
+    @CacheEvict(value = CacheConfig.CACHE_SOURCES, allEntries = true)
     public void recordFailedRun(Source source, ExtractionResult result) {
         SourceFetchRun run = new SourceFetchRun(
                 source, "FAILED", result.httpStatus(),
@@ -75,6 +78,7 @@ public class IngestionPersistenceService {
     }
 
     @Transactional
+    @CacheEvict(value = CacheConfig.CACHE_SOURCES, allEntries = true)
     public void recordUnchangedRun(Source source, ExtractionResult result) {
         SourceFetchRun run = new SourceFetchRun(
                 source, "NO_CHANGE", result.httpStatus(),
@@ -89,6 +93,7 @@ public class IngestionPersistenceService {
     }
 
     @Transactional
+    @CacheEvict(value = CacheConfig.CACHE_SOURCES, allEntries = true)
     public IngestionEngine.IngestionSummary persistSuccessfulIngestion(Source source, ExtractionResult result) {
         SourceFetchRun run = new SourceFetchRun(
                 source, "SUCCESS", result.httpStatus(),

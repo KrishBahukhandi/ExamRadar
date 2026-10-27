@@ -1,10 +1,13 @@
 package com.examradar.backend.service;
 
+import com.examradar.backend.config.CacheConfig;
 import com.examradar.backend.domain.Exam;
 import com.examradar.backend.dto.ExamCategoryDto;
 import com.examradar.backend.dto.ExamDto;
 import com.examradar.backend.repository.ExamCategoryRepository;
 import com.examradar.backend.repository.ExamRepository;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +26,7 @@ public class ExamService {
         this.categoryRepository = categoryRepository;
     }
 
+    @Cacheable(value = CacheConfig.CACHE_EXAMS, key = "'c:' + (#categoryId != null ? #categoryId : 'all') + ':s:' + (#search != null ? #search.toLowerCase().trim() : 'all')")
     public List<ExamDto> getExams(String categoryId, String search) {
         List<Exam> exams;
         if (categoryId != null && !categoryId.isBlank()) {
@@ -43,16 +47,23 @@ public class ExamService {
         return exams.stream().map(this::toDto).toList();
     }
 
+    @Cacheable(value = CacheConfig.CACHE_EXAM_BY_ID, key = "#id")
     public ExamDto getExamById(String id) {
         Exam exam = examRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Examination not found: " + id));
         return toDto(exam);
     }
 
+    @Cacheable(value = CacheConfig.CACHE_EXAM_CATEGORIES)
     public List<ExamCategoryDto> getCategories() {
         return categoryRepository.findAllByOrderByDisplayOrderAsc().stream()
                 .map(c -> new ExamCategoryDto(c.getId(), c.getName(), c.getSlug(), c.getDescription(), c.getDisplayOrder()))
                 .toList();
+    }
+
+    @CacheEvict(value = {CacheConfig.CACHE_EXAMS, CacheConfig.CACHE_EXAM_BY_ID, CacheConfig.CACHE_EXAM_CATEGORIES}, allEntries = true)
+    public void evictCatalogCaches() {
+        // Programmatic cache eviction hook
     }
 
     public ExamDto toDto(Exam e) {

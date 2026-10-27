@@ -43,6 +43,7 @@ public class AdminService {
         this.fcmPushService = fcmPushService;
     }
 
+    @org.springframework.cache.annotation.Cacheable(value = com.examradar.backend.config.CacheConfig.CACHE_SOURCES)
     public List<SourceHealthDto> getSources() {
         return sourceRepository.findAll().stream().map(s -> new SourceHealthDto(
                 s.getId(),
@@ -66,6 +67,7 @@ public class AdminService {
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = com.examradar.backend.config.CacheConfig.CACHE_SOURCES, allEntries = true)
     public IngestionEngine.IngestionSummary triggerSourceRun(String sourceId) {
         return ingestionEngine.runIngestionForSource(sourceId);
     }

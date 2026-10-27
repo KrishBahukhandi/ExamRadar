@@ -26,7 +26,8 @@ class ExamRadarApp : Application() {
         super.onCreate()
         val prefsRepository = UserPreferencesRepository(applicationContext)
         val diskCache = OfflineDiskCache(applicationContext)
-        repository = ExamRadarRepositoryImpl(prefsRepository, apiClient, diskCache = diskCache)
+        val database = com.examradar.app.data.local.ExamRadarDatabase.getInstance(applicationContext)
+        repository = ExamRadarRepositoryImpl(prefsRepository, apiClient, diskCache = diskCache, database = database)
 
         // 1. Initialize Android Notification Channels
         ExamRadarNotificationManager.initNotificationChannels(this)

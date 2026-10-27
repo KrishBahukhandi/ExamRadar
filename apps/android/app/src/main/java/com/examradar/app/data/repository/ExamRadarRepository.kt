@@ -1,6 +1,7 @@
 package com.examradar.app.data.repository
 
 import android.util.Log
+import com.examradar.app.data.local.*
 import com.examradar.app.data.cache.OfflineDiskCache
 import com.examradar.app.data.fixture.DevelopmentNoticeFixtures
 import com.examradar.app.data.model.*
@@ -81,7 +82,8 @@ class ExamRadarRepositoryImpl(
     private val preferencesRepository: UserPreferencesRepository,
     private val apiClient: ExamRadarApiClient = ExamRadarApiClient(),
     private val authService: com.examradar.app.data.remote.SupabaseAuthService = com.examradar.app.data.remote.SupabaseAuthService(),
-    private val diskCache: OfflineDiskCache? = null
+    private val diskCache: OfflineDiskCache? = null,
+    private val database: ExamRadarDatabase? = null
 ) : ExamRadarRepository {
 
     private val liveCategories = MutableStateFlow<List<CategoryModel>>(
@@ -96,6 +98,22 @@ class ExamRadarRepositoryImpl(
 
     init {
         CoroutineScope(Dispatchers.IO).launch {
+            if (database != null) {
+                runCatching {
+                    val dbCats = database.categoryDao().getAllCategoriesList()
+                    if (dbCats.isNotEmpty()) {
+                        liveCategories.value = dbCats.map { it.toDomainModel() }
+                    }
+                    val dbExams = database.examDao().getAllExamsList()
+                    if (dbExams.isNotEmpty()) {
+                        liveExams.value = dbExams.map { it.toDomainModel() }
+                    }
+                    val dbNotices = database.noticeDao().getAllNoticesList()
+                    if (dbNotices.isNotEmpty()) {
+                        liveNotices.value = dbNotices.map { it.toDomainModel() }
+                    }
+                }
+            }
             refreshNotices()
         }
     }
@@ -108,6 +126,7 @@ class ExamRadarRepositoryImpl(
             if (!remoteCategories.isNullOrEmpty()) {
                 liveCategories.value = remoteCategories
                 diskCache?.saveCategories(remoteCategories)
+                database?.categoryDao()?.insertCategories(remoteCategories.map { it.toEntity() })
                 anySuccess = true
             }
 
@@ -115,6 +134,7 @@ class ExamRadarRepositoryImpl(
             if (!remoteExams.isNullOrEmpty()) {
                 liveExams.value = remoteExams
                 diskCache?.saveExams(remoteExams)
+                database?.examDao()?.insertExams(remoteExams.map { it.toEntity() })
                 anySuccess = true
             }
 
@@ -122,6 +142,7 @@ class ExamRadarRepositoryImpl(
             if (!remote.isNullOrEmpty()) {
                 liveNotices.value = remote
                 diskCache?.saveNotices(remote)
+                database?.noticeDao()?.insertNotices(remote.map { it.toEntity() })
                 anySuccess = true
             }
             anySuccess
@@ -167,6 +188,13 @@ class ExamRadarRepositoryImpl(
             }
         }
         diskCache?.clear()
+        database?.let { db ->
+            runCatching {
+                db.categoryDao().clearCategories()
+                db.examDao().clearExams()
+                db.noticeDao().clearNotices()
+            }
+        }
         preferencesRepository.clearAllData()
     }
 

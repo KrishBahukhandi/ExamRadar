@@ -25,6 +25,7 @@ public class UserService {
     private final ExamRepository examRepository;
     private final ExamCategoryRepository categoryRepository;
     private final DeviceTokenRepository deviceTokenRepository;
+    private final NotificationJobRepository notificationJobRepository;
 
     public UserService(
             UserProfileRepository profileRepository,
@@ -34,7 +35,8 @@ public class UserService {
             ApplicationChecklistItemRepository checklistItemRepository,
             ExamRepository examRepository,
             ExamCategoryRepository categoryRepository,
-            DeviceTokenRepository deviceTokenRepository
+            DeviceTokenRepository deviceTokenRepository,
+            NotificationJobRepository notificationJobRepository
     ) {
         this.profileRepository = profileRepository;
         this.userExamPreferenceRepository = userExamPreferenceRepository;
@@ -44,6 +46,7 @@ public class UserService {
         this.examRepository = examRepository;
         this.categoryRepository = categoryRepository;
         this.deviceTokenRepository = deviceTokenRepository;
+        this.notificationJobRepository = notificationJobRepository;
     }
 
     public UserProfile getOrCreateUser(AuthenticatedUser authUser) {
@@ -267,5 +270,41 @@ public class UserService {
                 cl.getCreatedAt(),
                 cl.getUpdatedAt()
         );
+    }
+
+    @Transactional(readOnly = true)
+    public List<com.examradar.backend.dto.NotificationInboxDto> getNotificationInbox(AuthenticatedUser authUser) {
+        UserProfile user = getOrCreateUser(authUser);
+        List<NotificationJob> jobs = notificationJobRepository.findTop50ByUserIdOrderByScheduledAtDesc(user.getId());
+        return jobs.stream().map(job -> {
+            Notice notice = job.getNotice();
+            Exam exam = notice != null ? notice.getExam() : null;
+            String examName = exam != null ? exam.getExamName() : "Official Examination";
+            String org = exam != null ? exam.getOrganization() : (notice != null && notice.getSource() != null ? notice.getSource().getSourceName() : "Govt of India");
+
+            String title = switch (job.getEventType()) {
+                case NEW_NOTICE -> "New Notification: " + examName;
+                case DEADLINE_7D -> "Deadline Alert: 7 Days Left — " + examName;
+                case DEADLINE_3D -> "🚨 Urgent: 3 Days Left to Apply — " + examName;
+                case DEADLINE_1D -> "⚠️ Final Day: Applications Close Today — " + examName;
+                case DEADLINE_REVISED -> "Schedule Revised: " + examName;
+                case RESULT_OUT -> "🏆 Result Declared: " + examName;
+            };
+
+            String message = notice != null ? notice.getTitle() : "Important recruitment announcement posted.";
+
+            return new com.examradar.backend.dto.NotificationInboxDto(
+                    job.getId(),
+                    notice != null ? notice.getId() : null,
+                    exam != null ? exam.getId() : null,
+                    examName,
+                    org,
+                    job.getEventType(),
+                    title,
+                    message,
+                    job.getScheduledAt(),
+                    job.getStatus().name()
+            );
+        }).toList();
     }
 }

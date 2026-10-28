@@ -72,11 +72,16 @@ interface AuthRepository {
     suspend fun signOut()
 }
 
+interface NotificationInboxRepository {
+    fun getNotificationInbox(): Flow<List<NotificationInboxItemModel>>
+    suspend fun refreshNotificationInbox(): Boolean
+}
+
 /**
  * Composite repository contract combining domain sub-repositories.
  * Preserves binary compatibility with existing ViewModel factories.
  */
-interface ExamRadarRepository : NoticeRepository, ExamCatalogRepository, UserPreferencesDomainRepository, ChecklistRepository, AuthRepository
+interface ExamRadarRepository : NoticeRepository, ExamCatalogRepository, UserPreferencesDomainRepository, ChecklistRepository, AuthRepository, NotificationInboxRepository
 
 class ExamRadarRepositoryImpl(
     private val preferencesRepository: UserPreferencesRepository,
@@ -494,5 +499,100 @@ class ExamRadarRepositoryImpl(
             authService.logout(token)
         }
         preferencesRepository.clearUserSession()
+    }
+
+    private val liveInbox = MutableStateFlow<List<NotificationInboxItemModel>>(emptyList())
+
+    override fun getNotificationInbox(): Flow<List<NotificationInboxItemModel>> = combine(
+        liveInbox,
+        liveNotices,
+        preferencesRepository.userPreferences
+    ) { cloudInbox, notices, prefs ->
+        if (cloudInbox.isNotEmpty()) {
+            cloudInbox
+        } else {
+            val followedExamIds = prefs.followedExams
+            val relevantNotices = notices.filter { followedExamIds.contains(it.examId) || followedExamIds.isEmpty() }
+            val now = LocalDate.now()
+
+            relevantNotices.flatMap { notice ->
+                val alerts = mutableListOf<NotificationInboxItemModel>()
+
+                // 1. New Notice Announcement Alert
+                alerts.add(
+                    NotificationInboxItemModel(
+                        id = "inbox-new-${notice.id}",
+                        noticeId = notice.id,
+                        examId = notice.examId,
+                        examName = notice.examName,
+                        organization = notice.organization,
+                        eventType = "NEW_NOTICE",
+                        title = "📢 Official Notification: ${notice.examName}",
+                        message = notice.title,
+                        timestamp = notice.lastCheckedTimestamp - 7200000L,
+                        isRead = false
+                    )
+                )
+
+                // 2. Approaching Deadline Alert (if deadline present)
+                notice.applicationDeadline?.let { deadline ->
+                    val daysLeft = java.time.temporal.ChronoUnit.DAYS.between(now, deadline)
+                    if (daysLeft in 0..7) {
+                        val urgencyTitle = when (daysLeft) {
+                            0L -> "🚨 FINAL DAY: Application Window Closes Today!"
+                            1L -> "⚠️ Urgent: Only 1 Day Remaining to Apply!"
+                            in 2..3 -> "⏳ Urgent: Only $daysLeft Days Left — ${notice.examName}"
+                            else -> "⏳ Reminder: 7 Days Left to Apply — ${notice.examName}"
+                        }
+                        alerts.add(
+                            NotificationInboxItemModel(
+                                id = "inbox-deadline-${notice.id}",
+                                noticeId = notice.id,
+                                examId = notice.examId,
+                                examName = notice.examName,
+                                organization = notice.organization,
+                                eventType = if (daysLeft <= 3) "DEADLINE_3D" else "DEADLINE_7D",
+                                title = urgencyTitle,
+                                message = "Application & fee deadline on ${com.examradar.app.util.DateFormatter.format(deadline)}. Ensure submission is complete.",
+                                timestamp = System.currentTimeMillis() - 1800000L,
+                                isRead = false
+                            )
+                        )
+                    }
+                }
+
+                // 3. Correction Window Alert (if applicable)
+                notice.importantDates.find { it.dateType == DateType.CORRECTION_WINDOW }?.let { correctionDate ->
+                    alerts.add(
+                        NotificationInboxItemModel(
+                            id = "inbox-corr-${notice.id}",
+                            noticeId = notice.id,
+                            examId = notice.examId,
+                            examName = notice.examName,
+                            organization = notice.organization,
+                            eventType = "CORRECTION_WINDOW",
+                            title = "✏️ Application Correction Window: ${notice.examName}",
+                            message = "Correction window opens on ${com.examradar.app.util.DateFormatter.format(correctionDate.eventDate)}. Edit photo/signature if required.",
+                            timestamp = notice.lastCheckedTimestamp - 3600000L,
+                            isRead = false
+                        )
+                    )
+                }
+
+                alerts
+            }.sortedByDescending { it.timestamp }
+        }
+    }
+
+    override suspend fun refreshNotificationInbox(): Boolean {
+        val token = getValidAuthToken()
+        if (token != null) {
+            val cloudItems = apiClient.fetchNotificationInbox(token)
+            if (cloudItems != null) {
+                liveInbox.value = cloudItems
+                return true
+            }
+        }
+        return false
     }
 }

@@ -119,3 +119,22 @@ data class ChecklistRemoteDto(
     val notes: String?,
     val items: List<ChecklistItemRemoteDto>?
 )
+
+data class NotificationInboxApiResponse(
+    val success: Boolean,
+    val message: String?,
+    val data: List<NotificationInboxRemoteDto>?
+)
+
+data class NotificationInboxRemoteDto(
+    val id: String,
+    val noticeId: String?,
+    val examId: String?,
+    val examName: String?,
+    val organization: String?,
+    val eventType: String?,
+    val title: String?,
+    val message: String?,
+    val scheduledAt: String?,
+    val status: String?
+)

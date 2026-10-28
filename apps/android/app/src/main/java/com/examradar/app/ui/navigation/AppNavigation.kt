@@ -32,6 +32,8 @@ import com.examradar.app.ui.screens.discovery.DiscoveryScreen
 import com.examradar.app.ui.screens.discovery.DiscoveryViewModel
 import com.examradar.app.ui.screens.home.HomeScreen
 import com.examradar.app.ui.screens.home.HomeViewModel
+import com.examradar.app.ui.screens.notifications.NotificationInboxScreen
+import com.examradar.app.ui.screens.notifications.NotificationInboxViewModel
 import com.examradar.app.ui.screens.notifications.NotificationSettingsScreen
 import com.examradar.app.ui.screens.notifications.NotificationSettingsViewModel
 import com.examradar.app.ui.screens.auth.AuthScreen
@@ -186,7 +188,7 @@ fun AppNavigation(
                         navController.navigate(Screen.NoticeDetail.createRoute(noticeId))
                     },
                     onNotificationsClick = {
-                        navController.navigate(Screen.NotificationSettings.route)
+                        navController.navigate(Screen.NotificationInbox.route)
                     }
                 )
             }
@@ -255,6 +257,21 @@ fun AppNavigation(
                 ChecklistScreen(
                     viewModel = checklistViewModel,
                     onBackClick = { navController.popBackStack() }
+                )
+            }
+
+            // In-App Notification History / Alert Inbox
+            composable(Screen.NotificationInbox.route) {
+                val inboxViewModel: NotificationInboxViewModel = viewModel(
+                    factory = viewModelFactory { NotificationInboxViewModel(repository) }
+                )
+                NotificationInboxScreen(
+                    viewModel = inboxViewModel,
+                    onBackClick = { navController.popBackStack() },
+                    onSettingsClick = { navController.navigate(Screen.NotificationSettings.route) },
+                    onNoticeClick = { noticeId ->
+                        navController.navigate(Screen.NoticeDetail.createRoute(noticeId))
+                    }
                 )
             }
 

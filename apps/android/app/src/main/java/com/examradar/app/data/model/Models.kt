@@ -120,3 +120,16 @@ data class SourceFreshnessInfo(
     val isStale: Boolean = false,
     val statusMessage: String = "All official sources operational"
 )
+
+data class NotificationInboxItemModel(
+    val id: String,
+    val noticeId: String?,
+    val examId: String?,
+    val examName: String,
+    val organization: String,
+    val eventType: String,
+    val title: String,
+    val message: String,
+    val timestamp: Long,
+    val isRead: Boolean = false
+)

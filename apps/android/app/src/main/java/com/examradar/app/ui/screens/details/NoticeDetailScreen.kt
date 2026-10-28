@@ -1,5 +1,7 @@
 package com.examradar.app.ui.screens.details
 
+import android.content.Context
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -103,6 +105,13 @@ fun NoticeDetailScreen(
                 },
                 actions = {
                     uiState.notice?.let { notice ->
+                        IconButton(onClick = { shareNotice(context, notice) }) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Share Notice",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                         IconButton(onClick = { viewModel.toggleFollow() }) {
                             Icon(
                                 imageVector = if (uiState.isFollowing) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
@@ -321,6 +330,14 @@ fun NoticeDetailScreen(
                         Text("Official Notice")
                     }
                 }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // WhatsApp / Social Share Card for Aspirants & Study Groups
+                NoticeShareCard(
+                    notice = notice,
+                    onShareClick = { shareNotice(context, notice) }
+                )
 
                 Spacer(modifier = Modifier.height(20.dp))
 
@@ -916,3 +933,124 @@ fun EducationalQualificationCard(qualification: String) {
         }
     }
 }
+
+@Composable
+fun NoticeShareCard(
+    notice: NoticeModel,
+    onShareClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFF0FDF4)
+        ),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFBBF7D0))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFF16A34A)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier
+                            .padding(8.dp)
+                            .size(18.dp)
+                    )
+                }
+                Column {
+                    Text(
+                        text = "Share with Study Group",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF14532D)
+                    )
+                    Text(
+                        text = "Formatted card ready for WhatsApp & Telegram groups",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF15803D)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(
+                onClick = onShareClick,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF16A34A),
+                    contentColor = Color.White
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Share,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Share Notification Card",
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+fun shareNotice(context: Context, notice: NoticeModel) {
+    val deadline = notice.importantDates.find { it.dateType == DateType.APPLICATION_DEADLINE }?.eventDate
+    val deadlineStr = if (deadline != null) DateFormatter.format(deadline) else "Check Official Notification"
+
+    val textBuilder = StringBuilder()
+    textBuilder.append("📢 *${notice.title}*\n")
+    textBuilder.append("🏛️ *Authority:* ${notice.organization}\n")
+    if (notice.totalVacancies != null && notice.totalVacancies > 0) {
+        val formattedVacancies = java.text.NumberFormat.getIntegerInstance(java.util.Locale("en", "IN")).format(notice.totalVacancies)
+        textBuilder.append("🔢 *Total Vacancies:* $formattedVacancies Posts\n")
+    }
+    if (!notice.payScaleSummary.isNullOrBlank()) {
+        textBuilder.append("💰 *Pay Scale:* ${notice.payScaleSummary}\n")
+    }
+    textBuilder.append("⏳ *Last Date to Apply:* $deadlineStr\n")
+    if (!notice.educationalQualification.isNullOrBlank()) {
+        textBuilder.append("🎓 *Qualification:* ${notice.educationalQualification}\n")
+    }
+    if (notice.ageMin != null && notice.ageMax != null) {
+        textBuilder.append("🎂 *Age Criteria:* ${notice.ageMin} - ${notice.ageMax} Years\n")
+    }
+    if (notice.applicationFeeGeneral != null) {
+        val feeGeneralStr = if (notice.applicationFeeGeneral == 0) "Free" else "₹${notice.applicationFeeGeneral}"
+        val feeReservedStr = if (notice.applicationFeeReserved != null) {
+            if (notice.applicationFeeReserved == 0) "Free (Exempt)" else "₹${notice.applicationFeeReserved}"
+        } else "Exempt for reserved categories"
+        textBuilder.append("💳 *Application Fee:* $feeGeneralStr (Reserved: $feeReservedStr)\n")
+    }
+    if (!notice.officialApplyUrl.isNullOrBlank()) {
+        textBuilder.append("\n🔗 *Apply Online:* ${notice.officialApplyUrl}\n")
+    }
+    textBuilder.append("📄 *Official PDF Notice:* ${notice.officialNoticeUrl}\n")
+    textBuilder.append("\n_Shared via ExamRadar India — Real-Time Govt Exam Notice Tracker_")
+
+    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_SUBJECT, "${notice.organization}: ${notice.examName} Notification")
+        putExtra(Intent.EXTRA_TEXT, textBuilder.toString())
+    }
+    val chooser = Intent.createChooser(sendIntent, "Share Exam Notice via...")
+    context.startActivity(chooser)
+}
+

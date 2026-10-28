@@ -40,6 +40,14 @@ public class UserProfileController {
         return ApiResponse.ok("Preferences updated successfully", updated);
     }
 
+    @GetMapping("/notifications")
+    @Operation(summary = "Get candidate's notification inbox and recent alert history")
+    public ApiResponse<List<com.examradar.backend.dto.NotificationInboxDto>> getNotificationInbox(
+            @AuthenticationPrincipal AuthenticatedUser authUser
+    ) {
+        return ApiResponse.ok(userService.getNotificationInbox(authUser));
+    }
+
     @GetMapping("/checklists")
     @Operation(summary = "Get candidate's private application checklists")
     public ApiResponse<List<ApplicationChecklistDto>> getChecklists(@AuthenticationPrincipal AuthenticatedUser authUser) {

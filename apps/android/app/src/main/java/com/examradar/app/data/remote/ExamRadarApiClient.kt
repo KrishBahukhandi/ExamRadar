@@ -163,6 +163,43 @@ class ExamRadarApiClient(
         }
     }
 
+    fun fetchNotificationInbox(token: String): List<NotificationInboxItemModel>? {
+        return try {
+            val request = Request.Builder()
+                .url("$baseUrl/api/v1/me/notifications")
+                .header("Authorization", "Bearer $token")
+                .header("Accept", "application/json")
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    Log.w("ExamRadarApiClient", "fetchNotificationInbox returned HTTP ${response.code}")
+                    return null
+                }
+                val bodyStr = response.body?.string() ?: return null
+                val apiResponse = gson.fromJson(bodyStr, NotificationInboxApiResponse::class.java)
+                val dtos = apiResponse.data ?: return emptyList()
+
+                dtos.map { dto ->
+                    NotificationInboxItemModel(
+                        id = dto.id,
+                        noticeId = dto.noticeId,
+                        examId = dto.examId,
+                        examName = dto.examName ?: "Official Notice",
+                        organization = dto.organization ?: "Government of India",
+                        eventType = dto.eventType ?: "NEW_NOTICE",
+                        title = dto.title ?: "Notification Update",
+                        message = dto.message ?: "",
+                        timestamp = System.currentTimeMillis()
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("ExamRadarApiClient", "Error fetching notification inbox: ${e.message}")
+            null
+        }
+    }
+
     fun fetchChecklists(token: String): List<ChecklistRemoteDto>? {
         return try {
             val request = Request.Builder()

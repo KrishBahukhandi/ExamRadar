@@ -147,7 +147,18 @@ public class NoticeService {
                 dateDtos,
                 n.getSource() != null ? n.getSource().getLastSuccessfulFetch() : null,
                 n.getCreatedAt(),
-                n.getUpdatedAt()
+                n.getUpdatedAt(),
+                n.getTotalVacancies(),
+                n.getVacancyBreakdownJson(),
+                n.getPayScaleSummary(),
+                n.getApplicationFeeGeneral(),
+                n.getApplicationFeeReserved(),
+                n.getFeeExemptionDetails(),
+                n.getAgeMin(),
+                n.getAgeMax(),
+                n.getAgeCutoffDate(),
+                n.getAgeRelaxationSummary(),
+                n.getEducationalQualification()
         );
     }
 }

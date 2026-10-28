@@ -93,7 +93,18 @@ fun NoticeEntity.toDomainModel(): NoticeModel {
         lastCheckedTimestamp = lastCheckedTimestamp,
         isDemonstrationFixture = isDemonstrationFixture,
         importantDates = dates,
-        eligibilitySummary = eligibilitySummary
+        eligibilitySummary = eligibilitySummary,
+        totalVacancies = totalVacancies,
+        vacancyBreakdownJson = vacancyBreakdownJson,
+        payScaleSummary = payScaleSummary,
+        applicationFeeGeneral = applicationFeeGeneral,
+        applicationFeeReserved = applicationFeeReserved,
+        feeExemptionDetails = feeExemptionDetails,
+        ageMin = ageMin,
+        ageMax = ageMax,
+        ageCutoffDate = ageCutoffDate,
+        ageRelaxationSummary = ageRelaxationSummary,
+        educationalQualification = educationalQualification
     )
 }
 
@@ -118,6 +129,17 @@ fun NoticeModel.toEntity(): NoticeEntity {
         lastCheckedTimestamp = lastCheckedTimestamp,
         isDemonstrationFixture = isDemonstrationFixture,
         eligibilitySummary = eligibilitySummary,
-        importantDatesJson = datesJson
+        importantDatesJson = datesJson,
+        totalVacancies = totalVacancies,
+        vacancyBreakdownJson = vacancyBreakdownJson,
+        payScaleSummary = payScaleSummary,
+        applicationFeeGeneral = applicationFeeGeneral,
+        applicationFeeReserved = applicationFeeReserved,
+        feeExemptionDetails = feeExemptionDetails,
+        ageMin = ageMin,
+        ageMax = ageMax,
+        ageCutoffDate = ageCutoffDate,
+        ageRelaxationSummary = ageRelaxationSummary,
+        educationalQualification = educationalQualification
     )
 }

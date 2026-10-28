@@ -32,7 +32,18 @@ data class NoticeRemoteDto(
     val publishedDate: String?,
     val verificationStatus: String?,
     val applicationDeadline: String?,
-    val importantDates: List<NoticeDateRemoteDto>?
+    val importantDates: List<NoticeDateRemoteDto>?,
+    val totalVacancies: Int? = null,
+    val vacancyBreakdownJson: String? = null,
+    val payScaleSummary: String? = null,
+    val applicationFeeGeneral: Int? = null,
+    val applicationFeeReserved: Int? = null,
+    val feeExemptionDetails: String? = null,
+    val ageMin: Int? = null,
+    val ageMax: Int? = null,
+    val ageCutoffDate: String? = null,
+    val ageRelaxationSummary: String? = null,
+    val educationalQualification: String? = null
 )
 
 data class CategoryApiResponse(

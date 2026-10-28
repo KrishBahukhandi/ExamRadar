@@ -90,7 +90,18 @@ class EntityMappersTest {
                     isRevised = false
                 )
             ),
-            eligibilitySummary = "Bachelor's degree from recognized university"
+            eligibilitySummary = "Bachelor's degree from recognized university",
+            totalVacancies = 1056,
+            vacancyBreakdownJson = "{\"UR\": 420, \"OBC\": 285}",
+            payScaleSummary = "Pay Level 10 (₹56,100 – ₹1,77,500)",
+            applicationFeeGeneral = 100,
+            applicationFeeReserved = 0,
+            feeExemptionDetails = "Female/SC/ST exempted",
+            ageMin = 21,
+            ageMax = 32,
+            ageCutoffDate = LocalDate.of(2026, 8, 1),
+            ageRelaxationSummary = "+5 yrs SC/ST, +3 yrs OBC",
+            educationalQualification = "Degree from recognized University"
         )
 
         val entity = model.toEntity()
@@ -98,6 +109,13 @@ class EntityMappersTest {
         assertEquals(model.examId, entity.examId)
         assertEquals(model.noticeType, entity.noticeType)
         assertEquals(model.publishedDate, entity.publishedDate)
+        assertEquals(1056, entity.totalVacancies)
+        assertEquals("Pay Level 10 (₹56,100 – ₹1,77,500)", entity.payScaleSummary)
+        assertEquals(100, entity.applicationFeeGeneral)
+        assertEquals(0, entity.applicationFeeReserved)
+        assertEquals(21, entity.ageMin)
+        assertEquals(32, entity.ageMax)
+        assertEquals(LocalDate.of(2026, 8, 1), entity.ageCutoffDate)
 
         val mappedBack = entity.toDomainModel()
         assertEquals(model.id, mappedBack.id)
@@ -110,6 +128,17 @@ class EntityMappersTest {
         assertEquals(model.importantDates.size, mappedBack.importantDates.size)
         assertEquals(model.importantDates[0].eventDate, mappedBack.importantDates[0].eventDate)
         assertEquals(model.importantDates[1].dateType, mappedBack.importantDates[1].dateType)
+        assertEquals(model.totalVacancies, mappedBack.totalVacancies)
+        assertEquals(model.vacancyBreakdownJson, mappedBack.vacancyBreakdownJson)
+        assertEquals(model.payScaleSummary, mappedBack.payScaleSummary)
+        assertEquals(model.applicationFeeGeneral, mappedBack.applicationFeeGeneral)
+        assertEquals(model.applicationFeeReserved, mappedBack.applicationFeeReserved)
+        assertEquals(model.feeExemptionDetails, mappedBack.feeExemptionDetails)
+        assertEquals(model.ageMin, mappedBack.ageMin)
+        assertEquals(model.ageMax, mappedBack.ageMax)
+        assertEquals(model.ageCutoffDate, mappedBack.ageCutoffDate)
+        assertEquals(model.ageRelaxationSummary, mappedBack.ageRelaxationSummary)
+        assertEquals(model.educationalQualification, mappedBack.educationalQualification)
     }
 
     @Test

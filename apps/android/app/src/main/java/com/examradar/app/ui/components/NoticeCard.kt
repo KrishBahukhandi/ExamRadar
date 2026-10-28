@@ -130,6 +130,78 @@ fun NoticeCard(
                 overflow = TextOverflow.Ellipsis
             )
 
+            // Decision Enablers Quick-Glance Chips
+            if (notice.totalVacancies != null || notice.payScaleSummary != null || notice.applicationFeeGeneral != null || notice.ageMax != null) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (notice.totalVacancies != null) {
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                        ) {
+                            Text(
+                                text = "👥 %,d Posts".format(notice.totalVacancies),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+
+                    if (notice.payScaleSummary != null) {
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = Color(0xFF0D9488).copy(alpha = 0.12f)
+                        ) {
+                            val shortPay = notice.payScaleSummary.substringBefore(" (")
+                            Text(
+                                text = "💰 $shortPay",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFF0F766E),
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+
+                    if (notice.applicationFeeGeneral != null) {
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = Color(0xFF6366F1).copy(alpha = 0.12f)
+                        ) {
+                            Text(
+                                text = if (notice.applicationFeeGeneral == 0) "💳 Free" else "💳 ₹${notice.applicationFeeGeneral}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFF4F46E5),
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+
+                    if (notice.ageMin != null && notice.ageMax != null) {
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            Text(
+                                text = "Age: ${notice.ageMin}–${notice.ageMax}y",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(12.dp))
 
             // Deadline & Dates Bar

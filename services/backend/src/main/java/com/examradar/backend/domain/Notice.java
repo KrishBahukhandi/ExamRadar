@@ -60,6 +60,39 @@ public class Notice {
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt = OffsetDateTime.now();
 
+    @Column(name = "total_vacancies")
+    private Integer totalVacancies;
+
+    @Column(name = "vacancy_breakdown_json", columnDefinition = "TEXT")
+    private String vacancyBreakdownJson;
+
+    @Column(name = "pay_scale_summary", length = 255)
+    private String payScaleSummary;
+
+    @Column(name = "application_fee_general")
+    private Integer applicationFeeGeneral;
+
+    @Column(name = "application_fee_reserved")
+    private Integer applicationFeeReserved;
+
+    @Column(name = "fee_exemption_details", columnDefinition = "TEXT")
+    private String feeExemptionDetails;
+
+    @Column(name = "age_min")
+    private Integer ageMin;
+
+    @Column(name = "age_max")
+    private Integer ageMax;
+
+    @Column(name = "age_cutoff_date")
+    private LocalDate ageCutoffDate;
+
+    @Column(name = "age_relaxation_summary", columnDefinition = "TEXT")
+    private String ageRelaxationSummary;
+
+    @Column(name = "educational_qualification", columnDefinition = "TEXT")
+    private String educationalQualification;
+
     public Notice() {}
 
     public Notice(Exam exam, Source source, NoticeType noticeType, String title, String summary,
@@ -120,4 +153,37 @@ public class Notice {
 
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(OffsetDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    public Integer getTotalVacancies() { return totalVacancies; }
+    public void setTotalVacancies(Integer totalVacancies) { this.totalVacancies = totalVacancies; }
+
+    public String getVacancyBreakdownJson() { return vacancyBreakdownJson; }
+    public void setVacancyBreakdownJson(String vacancyBreakdownJson) { this.vacancyBreakdownJson = vacancyBreakdownJson; }
+
+    public String getPayScaleSummary() { return payScaleSummary; }
+    public void setPayScaleSummary(String payScaleSummary) { this.payScaleSummary = payScaleSummary; }
+
+    public Integer getApplicationFeeGeneral() { return applicationFeeGeneral; }
+    public void setApplicationFeeGeneral(Integer applicationFeeGeneral) { this.applicationFeeGeneral = applicationFeeGeneral; }
+
+    public Integer getApplicationFeeReserved() { return applicationFeeReserved; }
+    public void setApplicationFeeReserved(Integer applicationFeeReserved) { this.applicationFeeReserved = applicationFeeReserved; }
+
+    public String getFeeExemptionDetails() { return feeExemptionDetails; }
+    public void setFeeExemptionDetails(String feeExemptionDetails) { this.feeExemptionDetails = feeExemptionDetails; }
+
+    public Integer getAgeMin() { return ageMin; }
+    public void setAgeMin(Integer ageMin) { this.ageMin = ageMin; }
+
+    public Integer getAgeMax() { return ageMax; }
+    public void setAgeMax(Integer ageMax) { this.ageMax = ageMax; }
+
+    public LocalDate getAgeCutoffDate() { return ageCutoffDate; }
+    public void setAgeCutoffDate(LocalDate ageCutoffDate) { this.ageCutoffDate = ageCutoffDate; }
+
+    public String getAgeRelaxationSummary() { return ageRelaxationSummary; }
+    public void setAgeRelaxationSummary(String ageRelaxationSummary) { this.ageRelaxationSummary = ageRelaxationSummary; }
+
+    public String getEducationalQualification() { return educationalQualification; }
+    public void setEducationalQualification(String educationalQualification) { this.educationalQualification = educationalQualification; }
 }

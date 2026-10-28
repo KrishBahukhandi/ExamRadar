@@ -27,5 +27,47 @@ public record NoticeDto(
     List<NoticeDateDto> importantDates,
     OffsetDateTime lastCheckedAt,
     OffsetDateTime createdAt,
-    OffsetDateTime updatedAt
-) {}
+    OffsetDateTime updatedAt,
+    Integer totalVacancies,
+    String vacancyBreakdownJson,
+    String payScaleSummary,
+    Integer applicationFeeGeneral,
+    Integer applicationFeeReserved,
+    String feeExemptionDetails,
+    Integer ageMin,
+    Integer ageMax,
+    LocalDate ageCutoffDate,
+    String ageRelaxationSummary,
+    String educationalQualification
+) {
+    // Backward compatibility constructor for existing tests/callers
+    public NoticeDto(
+            UUID id,
+            String examId,
+            String examName,
+            String organization,
+            String sourceId,
+            String sourceName,
+            NoticeType noticeType,
+            String title,
+            String summary,
+            String officialNoticeUrl,
+            String officialApplyUrl,
+            NoticeStatus status,
+            LocalDate publishedDate,
+            VerificationStatus verificationStatus,
+            LocalDate applicationDeadline,
+            List<NoticeDateDto> importantDates,
+            OffsetDateTime lastCheckedAt,
+            OffsetDateTime createdAt,
+            OffsetDateTime updatedAt
+    ) {
+        this(
+                id, examId, examName, organization, sourceId, sourceName, noticeType,
+                title, summary, officialNoticeUrl, officialApplyUrl, status,
+                publishedDate, verificationStatus, applicationDeadline, importantDates,
+                lastCheckedAt, createdAt, updatedAt,
+                null, null, null, null, null, null, null, null, null, null, null
+        );
+    }
+}

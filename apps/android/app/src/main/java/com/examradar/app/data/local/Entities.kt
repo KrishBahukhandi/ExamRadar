@@ -62,5 +62,16 @@ data class NoticeEntity(
     val lastCheckedTimestamp: Long = System.currentTimeMillis(),
     val isDemonstrationFixture: Boolean = false,
     val eligibilitySummary: String? = null,
-    val importantDatesJson: String = "[]"
+    val importantDatesJson: String = "[]",
+    val totalVacancies: Int? = null,
+    val vacancyBreakdownJson: String? = null,
+    val payScaleSummary: String? = null,
+    val applicationFeeGeneral: Int? = null,
+    val applicationFeeReserved: Int? = null,
+    val feeExemptionDetails: String? = null,
+    val ageMin: Int? = null,
+    val ageMax: Int? = null,
+    val ageCutoffDate: LocalDate? = null,
+    val ageRelaxationSummary: String? = null,
+    val educationalQualification: String? = null
 )

@@ -127,6 +127,17 @@ public class IngestionPersistenceService {
                         noticeDto.summary(), noticeDto.officialNoticeUrl(), noticeDto.officialApplyUrl(),
                         initialStatus, noticeDto.publishedDate(), initialVerification
                 );
+                notice.setTotalVacancies(noticeDto.totalVacancies());
+                notice.setVacancyBreakdownJson(noticeDto.vacancyBreakdownJson());
+                notice.setPayScaleSummary(noticeDto.payScaleSummary());
+                notice.setApplicationFeeGeneral(noticeDto.applicationFeeGeneral());
+                notice.setApplicationFeeReserved(noticeDto.applicationFeeReserved());
+                notice.setFeeExemptionDetails(noticeDto.feeExemptionDetails());
+                notice.setAgeMin(noticeDto.ageMin());
+                notice.setAgeMax(noticeDto.ageMax());
+                notice.setAgeCutoffDate(noticeDto.ageCutoffDate());
+                notice.setAgeRelaxationSummary(noticeDto.ageRelaxationSummary());
+                notice.setEducationalQualification(noticeDto.educationalQualification());
                 notice = noticeRepository.save(notice);
 
                 SourceDocument doc = new SourceDocument(
@@ -189,6 +200,17 @@ public class IngestionPersistenceService {
 
                     existingNotice.setTitle(noticeDto.title());
                     existingNotice.setSummary(noticeDto.summary());
+                    if (noticeDto.totalVacancies() != null) existingNotice.setTotalVacancies(noticeDto.totalVacancies());
+                    if (noticeDto.vacancyBreakdownJson() != null) existingNotice.setVacancyBreakdownJson(noticeDto.vacancyBreakdownJson());
+                    if (noticeDto.payScaleSummary() != null) existingNotice.setPayScaleSummary(noticeDto.payScaleSummary());
+                    if (noticeDto.applicationFeeGeneral() != null) existingNotice.setApplicationFeeGeneral(noticeDto.applicationFeeGeneral());
+                    if (noticeDto.applicationFeeReserved() != null) existingNotice.setApplicationFeeReserved(noticeDto.applicationFeeReserved());
+                    if (noticeDto.feeExemptionDetails() != null) existingNotice.setFeeExemptionDetails(noticeDto.feeExemptionDetails());
+                    if (noticeDto.ageMin() != null) existingNotice.setAgeMin(noticeDto.ageMin());
+                    if (noticeDto.ageMax() != null) existingNotice.setAgeMax(noticeDto.ageMax());
+                    if (noticeDto.ageCutoffDate() != null) existingNotice.setAgeCutoffDate(noticeDto.ageCutoffDate());
+                    if (noticeDto.ageRelaxationSummary() != null) existingNotice.setAgeRelaxationSummary(noticeDto.ageRelaxationSummary());
+                    if (noticeDto.educationalQualification() != null) existingNotice.setEducationalQualification(noticeDto.educationalQualification());
                     existingNotice.setUpdatedAt(OffsetDateTime.now());
                     noticeRepository.save(existingNotice);
 

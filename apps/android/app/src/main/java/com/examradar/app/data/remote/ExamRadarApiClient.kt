@@ -303,7 +303,18 @@ class ExamRadarApiClient(
             lastCheckedTimestamp = System.currentTimeMillis(),
             isDemonstrationFixture = false,
             importantDates = dates,
-            eligibilitySummary = "Official verified notice published on ${dto.publishedDate ?: "portal"}."
+            eligibilitySummary = "Official verified notice published on ${dto.publishedDate ?: "portal"}.",
+            totalVacancies = dto.totalVacancies,
+            vacancyBreakdownJson = dto.vacancyBreakdownJson,
+            payScaleSummary = dto.payScaleSummary,
+            applicationFeeGeneral = dto.applicationFeeGeneral,
+            applicationFeeReserved = dto.applicationFeeReserved,
+            feeExemptionDetails = dto.feeExemptionDetails,
+            ageMin = dto.ageMin,
+            ageMax = dto.ageMax,
+            ageCutoffDate = dto.ageCutoffDate?.let { runCatching { LocalDate.parse(it) }.getOrNull() },
+            ageRelaxationSummary = dto.ageRelaxationSummary,
+            educationalQualification = dto.educationalQualification
         )
     }
 

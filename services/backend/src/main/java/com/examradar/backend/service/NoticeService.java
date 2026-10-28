@@ -158,7 +158,12 @@ public class NoticeService {
                 n.getAgeMax(),
                 n.getAgeCutoffDate(),
                 n.getAgeRelaxationSummary(),
-                n.getEducationalQualification()
+                n.getEducationalQualification(),
+                n.getHasCorrigendum(),
+                n.getCorrigendumSummary(),
+                n.getPhotoSpecifications(),
+                n.getSignatureSpecifications(),
+                n.getFeePaymentDeadline()
         );
     }
 }

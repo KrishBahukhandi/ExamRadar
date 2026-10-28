@@ -43,7 +43,27 @@ data class NoticeRemoteDto(
     val ageMax: Int? = null,
     val ageCutoffDate: String? = null,
     val ageRelaxationSummary: String? = null,
-    val educationalQualification: String? = null
+    val educationalQualification: String? = null,
+    val hasCorrigendum: Boolean? = false,
+    val corrigendumSummary: String? = null,
+    val photoSpecifications: String? = null,
+    val signatureSpecifications: String? = null,
+    val feePaymentDeadline: String? = null
+)
+
+data class NoticeVersionApiResponse(
+    val success: Boolean,
+    val message: String?,
+    val data: List<NoticeVersionRemoteDto>?
+)
+
+data class NoticeVersionRemoteDto(
+    val id: String,
+    val noticeId: String,
+    val versionNumber: Int,
+    val contentHash: String? = null,
+    val changeSummary: String? = null,
+    val recordedAt: String? = null
 )
 
 data class CategoryApiResponse(

@@ -351,8 +351,48 @@ class ExamRadarApiClient(
             ageMax = dto.ageMax,
             ageCutoffDate = dto.ageCutoffDate?.let { runCatching { LocalDate.parse(it) }.getOrNull() },
             ageRelaxationSummary = dto.ageRelaxationSummary,
-            educationalQualification = dto.educationalQualification
+            educationalQualification = dto.educationalQualification,
+            hasCorrigendum = dto.hasCorrigendum ?: false,
+            corrigendumSummary = dto.corrigendumSummary,
+            photoSpecifications = dto.photoSpecifications,
+            signatureSpecifications = dto.signatureSpecifications,
+            feePaymentDeadline = dto.feePaymentDeadline?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
         )
+    }
+
+    fun fetchNoticeVersions(noticeId: String): List<NoticeVersionModel>? {
+        return try {
+            val request = Request.Builder()
+                .url("$baseUrl/api/v1/notices/$noticeId/versions")
+                .header("Accept", "application/json")
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    Log.w("ExamRadarApiClient", "fetchNoticeVersions returned HTTP ${response.code}")
+                    return null
+                }
+                val bodyStr = response.body?.string() ?: return null
+                val apiResponse = gson.fromJson(bodyStr, NoticeVersionApiResponse::class.java)
+                val dtos = apiResponse.data ?: return emptyList()
+
+                dtos.map { dto ->
+                    val timestamp = dto.recordedAt?.let {
+                        runCatching { java.time.OffsetDateTime.parse(it).toInstant().toEpochMilli() }.getOrNull()
+                    } ?: System.currentTimeMillis()
+                    NoticeVersionModel(
+                        id = dto.id,
+                        noticeId = dto.noticeId,
+                        versionNumber = dto.versionNumber,
+                        changeSummary = dto.changeSummary ?: "Official revision recorded",
+                        recordedAt = timestamp
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("ExamRadarApiClient", "Error fetching notice versions: ${e.message}")
+            null
+        }
     }
 
     fun registerDeviceToken(authToken: String, fcmToken: String, appVersion: String = "1.0.0"): Boolean {

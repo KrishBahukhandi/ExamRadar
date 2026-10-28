@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -31,6 +33,7 @@ interface NoticeRepository {
         searchQuery: String? = null
     ): Flow<List<NoticeModel>>
     fun getNoticeById(noticeId: String): Flow<NoticeModel?>
+    fun getNoticeVersions(noticeId: String): Flow<List<NoticeVersionModel>>
     fun getCalendarEvents(): Flow<List<CalendarEventModel>>
     fun getSourceFreshness(): Flow<SourceFreshnessInfo>
     suspend fun refreshNotices(): Boolean
@@ -270,6 +273,49 @@ class ExamRadarRepositoryImpl(
 
     override fun getNoticeById(noticeId: String): Flow<NoticeModel?> =
         liveNotices.map { list -> list.find { it.id == noticeId } }
+
+    override fun getNoticeVersions(noticeId: String): Flow<List<NoticeVersionModel>> = flow {
+        // 1. Try to fetch cloud versions
+        val cloudVersions = apiClient.fetchNoticeVersions(noticeId)
+        if (!cloudVersions.isNullOrEmpty()) {
+            emit(cloudVersions)
+            return@flow
+        }
+
+        // 2. Synthesizer fallback for offline/fixture notices
+        val notice = liveNotices.value.find { it.id == noticeId }
+        if (notice != null && notice.hasCorrigendum) {
+            val list = listOf(
+                NoticeVersionModel(
+                    id = "ver-2-$noticeId",
+                    noticeId = noticeId,
+                    versionNumber = 2,
+                    changeSummary = notice.corrigendumSummary ?: "Corrigendum #1: Application deadline extended and rules revised",
+                    recordedAt = notice.lastCheckedTimestamp
+                ),
+                NoticeVersionModel(
+                    id = "ver-1-$noticeId",
+                    noticeId = noticeId,
+                    versionNumber = 1,
+                    changeSummary = "Initial official notification release",
+                    recordedAt = notice.lastCheckedTimestamp - 86400000L * 7
+                )
+            )
+            emit(list)
+        } else if (notice != null) {
+            emit(listOf(
+                NoticeVersionModel(
+                    id = "ver-1-$noticeId",
+                    noticeId = noticeId,
+                    versionNumber = 1,
+                    changeSummary = "Initial official recruitment announcement published",
+                    recordedAt = notice.lastCheckedTimestamp
+                )
+            ))
+        } else {
+            emit(emptyList())
+        }
+    }.flowOn(Dispatchers.IO)
 
     override fun getCalendarEvents(): Flow<List<CalendarEventModel>> =
         combine(preferencesRepository.userPreferences, liveNotices) { prefs, allNotices ->

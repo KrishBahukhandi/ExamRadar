@@ -93,6 +93,21 @@ public class Notice {
     @Column(name = "educational_qualification", columnDefinition = "TEXT")
     private String educationalQualification;
 
+    @Column(name = "has_corrigendum")
+    private Boolean hasCorrigendum = false;
+
+    @Column(name = "corrigendum_summary", columnDefinition = "TEXT")
+    private String corrigendumSummary;
+
+    @Column(name = "photo_specifications", columnDefinition = "TEXT")
+    private String photoSpecifications;
+
+    @Column(name = "signature_specifications", columnDefinition = "TEXT")
+    private String signatureSpecifications;
+
+    @Column(name = "fee_payment_deadline")
+    private LocalDate feePaymentDeadline;
+
     public Notice() {}
 
     public Notice(Exam exam, Source source, NoticeType noticeType, String title, String summary,
@@ -186,4 +201,19 @@ public class Notice {
 
     public String getEducationalQualification() { return educationalQualification; }
     public void setEducationalQualification(String educationalQualification) { this.educationalQualification = educationalQualification; }
+
+    public Boolean getHasCorrigendum() { return hasCorrigendum != null && hasCorrigendum; }
+    public void setHasCorrigendum(Boolean hasCorrigendum) { this.hasCorrigendum = hasCorrigendum; }
+
+    public String getCorrigendumSummary() { return corrigendumSummary; }
+    public void setCorrigendumSummary(String corrigendumSummary) { this.corrigendumSummary = corrigendumSummary; }
+
+    public String getPhotoSpecifications() { return photoSpecifications; }
+    public void setPhotoSpecifications(String photoSpecifications) { this.photoSpecifications = photoSpecifications; }
+
+    public String getSignatureSpecifications() { return signatureSpecifications; }
+    public void setSignatureSpecifications(String signatureSpecifications) { this.signatureSpecifications = signatureSpecifications; }
+
+    public LocalDate getFeePaymentDeadline() { return feePaymentDeadline; }
+    public void setFeePaymentDeadline(LocalDate feePaymentDeadline) { this.feePaymentDeadline = feePaymentDeadline; }
 }

@@ -104,7 +104,27 @@ fun NoticeCard(
                     NoticeTypeBadge(noticeType = notice.noticeType)
                 }
 
-                VerificationBadge(status = notice.verificationStatus)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    if (notice.hasCorrigendum) {
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = Color(0xFFFEF3C7)
+                        ) {
+                            Text(
+                                text = "⚠️ Corrigendum",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFF92400E),
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+                    VerificationBadge(status = notice.verificationStatus)
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))

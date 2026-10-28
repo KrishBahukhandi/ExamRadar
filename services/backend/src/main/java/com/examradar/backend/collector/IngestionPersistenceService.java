@@ -211,6 +211,8 @@ public class IngestionPersistenceService {
                     if (noticeDto.ageCutoffDate() != null) existingNotice.setAgeCutoffDate(noticeDto.ageCutoffDate());
                     if (noticeDto.ageRelaxationSummary() != null) existingNotice.setAgeRelaxationSummary(noticeDto.ageRelaxationSummary());
                     if (noticeDto.educationalQualification() != null) existingNotice.setEducationalQualification(noticeDto.educationalQualification());
+                    existingNotice.setHasCorrigendum(true);
+                    existingNotice.setCorrigendumSummary("Corrigendum #" + (nextVersion - 1) + ": Official amendment and schedule update");
                     existingNotice.setUpdatedAt(OffsetDateTime.now());
                     noticeRepository.save(existingNotice);
 

@@ -38,9 +38,14 @@ public record NoticeDto(
     Integer ageMax,
     LocalDate ageCutoffDate,
     String ageRelaxationSummary,
-    String educationalQualification
+    String educationalQualification,
+    Boolean hasCorrigendum,
+    String corrigendumSummary,
+    String photoSpecifications,
+    String signatureSpecifications,
+    LocalDate feePaymentDeadline
 ) {
-    // Backward compatibility constructor for existing tests/callers
+    // Backward compatibility constructor for existing tests/callers (pre-decision-enablers)
     public NoticeDto(
             UUID id,
             String examId,
@@ -67,7 +72,8 @@ public record NoticeDto(
                 title, summary, officialNoticeUrl, officialApplyUrl, status,
                 publishedDate, verificationStatus, applicationDeadline, importantDates,
                 lastCheckedAt, createdAt, updatedAt,
-                null, null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null,
+                false, null, null, null, null
         );
     }
 }

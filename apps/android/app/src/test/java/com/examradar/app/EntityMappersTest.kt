@@ -101,7 +101,12 @@ class EntityMappersTest {
             ageMax = 32,
             ageCutoffDate = LocalDate.of(2026, 8, 1),
             ageRelaxationSummary = "+5 yrs SC/ST, +3 yrs OBC",
-            educationalQualification = "Degree from recognized University"
+            educationalQualification = "Degree from recognized University",
+            hasCorrigendum = true,
+            corrigendumSummary = "Corrigendum #1: Schedule revised",
+            photoSpecifications = "20-50KB white background",
+            signatureSpecifications = "10-20KB black ink",
+            feePaymentDeadline = LocalDate.of(2026, 3, 6)
         )
 
         val entity = model.toEntity()
@@ -116,6 +121,11 @@ class EntityMappersTest {
         assertEquals(21, entity.ageMin)
         assertEquals(32, entity.ageMax)
         assertEquals(LocalDate.of(2026, 8, 1), entity.ageCutoffDate)
+        assertEquals(true, entity.hasCorrigendum)
+        assertEquals("Corrigendum #1: Schedule revised", entity.corrigendumSummary)
+        assertEquals("20-50KB white background", entity.photoSpecifications)
+        assertEquals("10-20KB black ink", entity.signatureSpecifications)
+        assertEquals(LocalDate.of(2026, 3, 6), entity.feePaymentDeadline)
 
         val mappedBack = entity.toDomainModel()
         assertEquals(model.id, mappedBack.id)
@@ -139,6 +149,11 @@ class EntityMappersTest {
         assertEquals(model.ageCutoffDate, mappedBack.ageCutoffDate)
         assertEquals(model.ageRelaxationSummary, mappedBack.ageRelaxationSummary)
         assertEquals(model.educationalQualification, mappedBack.educationalQualification)
+        assertEquals(model.hasCorrigendum, mappedBack.hasCorrigendum)
+        assertEquals(model.corrigendumSummary, mappedBack.corrigendumSummary)
+        assertEquals(model.photoSpecifications, mappedBack.photoSpecifications)
+        assertEquals(model.signatureSpecifications, mappedBack.signatureSpecifications)
+        assertEquals(model.feePaymentDeadline, mappedBack.feePaymentDeadline)
     }
 
     @Test

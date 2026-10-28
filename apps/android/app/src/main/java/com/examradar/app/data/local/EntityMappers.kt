@@ -104,7 +104,12 @@ fun NoticeEntity.toDomainModel(): NoticeModel {
         ageMax = ageMax,
         ageCutoffDate = ageCutoffDate,
         ageRelaxationSummary = ageRelaxationSummary,
-        educationalQualification = educationalQualification
+        educationalQualification = educationalQualification,
+        hasCorrigendum = hasCorrigendum,
+        corrigendumSummary = corrigendumSummary,
+        photoSpecifications = photoSpecifications,
+        signatureSpecifications = signatureSpecifications,
+        feePaymentDeadline = feePaymentDeadline
     )
 }
 
@@ -140,6 +145,11 @@ fun NoticeModel.toEntity(): NoticeEntity {
         ageMax = ageMax,
         ageCutoffDate = ageCutoffDate,
         ageRelaxationSummary = ageRelaxationSummary,
-        educationalQualification = educationalQualification
+        educationalQualification = educationalQualification,
+        hasCorrigendum = hasCorrigendum,
+        corrigendumSummary = corrigendumSummary,
+        photoSpecifications = photoSpecifications,
+        signatureSpecifications = signatureSpecifications,
+        feePaymentDeadline = feePaymentDeadline
     )
 }

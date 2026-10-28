@@ -113,7 +113,12 @@ object DevelopmentNoticeFixtures {
             ageMax = 32,
             ageCutoffDate = LocalDate.of(2025, 8, 1),
             ageRelaxationSummary = "SC/ST: +5 yrs (Max 37), OBC: +3 yrs (Max 35), PwBD: +10 yrs (Max 42), Defence Disabled: +3 yrs",
-            educationalQualification = "Degree from a recognized University or equivalent. Final year students eligible to apply subject to producing proof of passing before Civil Services (Mains)."
+            educationalQualification = "Degree from a recognized University or equivalent. Final year students eligible to apply subject to producing proof of passing before Civil Services (Mains).",
+            hasCorrigendum = false,
+            corrigendumSummary = null,
+            photoSpecifications = "Recent passport photo with candidate name & date of capture at bottom. 20 KB – 300 KB JPG. Light background, 80% face view, no spectacles or headgear.",
+            signatureSpecifications = "20 KB – 300 KB in JPG format. Black ballpoint pen on plain white paper in running handwriting.",
+            feePaymentDeadline = LocalDate.now().plusDays(3)
         ),
         NoticeModel(
             id = "fixture-notice-2",
@@ -150,7 +155,12 @@ object DevelopmentNoticeFixtures {
             ageMax = 30,
             ageCutoffDate = LocalDate.of(2025, 8, 1),
             ageRelaxationSummary = "OBC: +3 yrs (Max 33), SC/ST: +5 yrs (Max 35), PwD (UR): +10 yrs, PwD (OBC): +13 yrs, PwD (SC/ST): +15 yrs",
-            educationalQualification = "Bachelor's Degree from a recognized University or Institute. Specific posts (Junior Statistical Officer) require Statistics/Maths at degree or 10+2 level."
+            educationalQualification = "Bachelor's Degree from a recognized University or Institute. Specific posts (Junior Statistical Officer) require Statistics/Maths at degree or 10+2 level.",
+            hasCorrigendum = true,
+            corrigendumSummary = "Corrigendum #1: Application deadline extended to 15 days from today. Total vacancies revised upwards from 14,381 to 17,727 across central ministries.",
+            photoSpecifications = "Live photo capture via webcam on ssc.gov.in. Plain white background, clear frontal face (80% coverage). Strictly NO glasses, caps, or side angles.",
+            signatureSpecifications = "10 KB to 20 KB in JPG format (approx 4.0 cm width x 2.0 cm height). Black ink on white paper. Running hand only (block capital letters rejected).",
+            feePaymentDeadline = LocalDate.now().plusDays(16)
         ),
         NoticeModel(
             id = "fixture-notice-3",

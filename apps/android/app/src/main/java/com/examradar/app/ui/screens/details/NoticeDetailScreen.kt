@@ -6,10 +6,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -29,19 +31,26 @@ import com.examradar.app.data.model.NoticeModel
 import com.examradar.app.data.repository.ExamRadarRepository
 import com.examradar.app.ui.components.*
 import com.examradar.app.ui.theme.*
+import com.examradar.app.data.model.NoticeVersionModel
 import com.examradar.app.util.CustomTabsHelper
 import com.examradar.app.util.DateFormatter
+import com.examradar.app.util.NoticePdfManager
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class NoticeDetailUiState(
     val isLoading: Boolean = true,
     val notice: NoticeModel? = null,
-    val isFollowing: Boolean = false
+    val isFollowing: Boolean = false,
+    val versions: List<NoticeVersionModel> = emptyList(),
+    val isPdfDownloading: Boolean = false,
+    val isPdfCached: Boolean = false,
+    val pdfSize: String? = null
 )
 
 class NoticeDetailViewModel(
@@ -54,6 +63,7 @@ class NoticeDetailViewModel(
 
     init {
         loadNotice()
+        loadVersions()
     }
 
     private fun loadNotice() {
@@ -61,17 +71,60 @@ class NoticeDetailViewModel(
             repository.getNoticeById(noticeId).collectLatest { notice ->
                 if (notice != null) {
                     repository.getExamById(notice.examId).collectLatest { exam ->
-                        _uiState.value = _uiState.value.copy(
-                            notice = notice,
-                            isFollowing = exam?.isFollowing ?: false,
-                            isLoading = false
-                        )
+                        _uiState.update { current ->
+                            current.copy(
+                                notice = notice,
+                                isFollowing = exam?.isFollowing ?: false,
+                                isLoading = false
+                            )
+                        }
                     }
                 } else {
-                    _uiState.value = _uiState.value.copy(isLoading = false)
+                    _uiState.update { it.copy(isLoading = false) }
                 }
             }
         }
+    }
+
+    private fun loadVersions() {
+        viewModelScope.launch {
+            repository.getNoticeVersions(noticeId).collectLatest { vers ->
+                _uiState.update { it.copy(versions = vers) }
+            }
+        }
+    }
+
+    fun checkPdfCache(context: Context) {
+        val cached = NoticePdfManager.isPdfCached(context, noticeId)
+        val size = if (cached) NoticePdfManager.getCachedPdfSize(context, noticeId) else null
+        _uiState.update { it.copy(isPdfCached = cached, pdfSize = size) }
+    }
+
+    fun downloadPdf(context: Context) {
+        val notice = _uiState.value.notice ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isPdfDownloading = true) }
+            try {
+                NoticePdfManager.downloadAndCachePdf(
+                    context = context,
+                    noticeId = notice.id,
+                    url = notice.officialNoticeUrl,
+                    isDemoFixture = notice.isDemonstrationFixture
+                )
+                checkPdfCache(context)
+            } finally {
+                _uiState.update { it.copy(isPdfDownloading = false) }
+            }
+        }
+    }
+
+    fun openPdf(context: Context) {
+        NoticePdfManager.openCachedPdf(context, noticeId)
+    }
+
+    fun sharePdf(context: Context) {
+        val notice = _uiState.value.notice ?: return
+        NoticePdfManager.shareCachedPdf(context, noticeId, notice.title)
     }
 
     fun toggleFollow() {
@@ -93,6 +146,10 @@ fun NoticeDetailScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+
+    LaunchedEffect(uiState.notice?.id) {
+        viewModel.checkPdfCache(context)
+    }
 
     Scaffold(
         topBar = {
@@ -188,6 +245,15 @@ fun NoticeDetailScreen(
                     color = MaterialTheme.colorScheme.onBackground
                 )
 
+                // Official Corrigendum / Amendment Alert Banner
+                if (notice.hasCorrigendum) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    CorrigendumAlertBanner(
+                        summary = notice.corrigendumSummary,
+                        versions = uiState.versions
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // Verification and Freshness Info Box
@@ -248,6 +314,12 @@ fun NoticeDetailScreen(
 
                 // Decision Enablers Hub: "Should I Apply?" (Vacancies, Salary, Fee, Age Eligibility Calculator)
                 DecisionEnablersHub(notice = notice)
+
+                // Avoid Form Rejection: Document & Upload Guidelines Card
+                if (notice.photoSpecifications != null || notice.signatureSpecifications != null || notice.feePaymentDeadline != null) {
+                    Spacer(modifier = Modifier.height(18.dp))
+                    UploadGuidelinesCard(notice = notice)
+                }
 
                 Spacer(modifier = Modifier.height(20.dp))
 
@@ -337,6 +409,19 @@ fun NoticeDetailScreen(
                 NoticeShareCard(
                     notice = notice,
                     onShareClick = { shareNotice(context, notice) }
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Official Notice PDF Hub (Offline Cache & 0ms Local Reader)
+                OfflineNoticePdfCard(
+                    notice = notice,
+                    isCached = uiState.isPdfCached,
+                    cachedSize = uiState.pdfSize,
+                    isDownloading = uiState.isPdfDownloading,
+                    onDownloadClick = { viewModel.downloadPdf(context) },
+                    onOpenClick = { viewModel.openPdf(context) },
+                    onShareClick = { viewModel.sharePdf(context) }
                 )
 
                 Spacer(modifier = Modifier.height(20.dp))
@@ -1053,4 +1138,436 @@ fun shareNotice(context: Context, notice: NoticeModel) {
     val chooser = Intent.createChooser(sendIntent, "Share Exam Notice via...")
     context.startActivity(chooser)
 }
+
+@Composable
+fun CorrigendumAlertBanner(
+    summary: String?,
+    versions: List<NoticeVersionModel>
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFFFFBEB)
+        ),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFDE68A))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = Color(0xFFD97706)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier
+                                .padding(4.dp)
+                                .size(14.dp)
+                        )
+                    }
+                    Text(
+                        text = "OFFICIAL CORRIGENDUM ISSUED",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF92400E)
+                    )
+                }
+
+                if (versions.size > 1) {
+                    TextButton(
+                        onClick = { expanded = !expanded },
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = if (expanded) "Hide History ▲" else "What Changed? (${versions.size}) ▼",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFB45309)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = summary ?: "Official corrigendum notice issued. Important recruitment dates or rules have been revised.",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF78350F)
+            )
+
+            if (expanded && versions.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                HorizontalDivider(color = Color(0xFFFDE68A))
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Official Revision Timeline",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF92400E)
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                versions.forEach { ver ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.Top,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = if (ver.versionNumber > 1) Color(0xFFFEF3C7) else Color(0xFFE2E8F0)
+                        ) {
+                            Text(
+                                text = "v${ver.versionNumber}",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (ver.versionNumber > 1) Color(0xFF92400E) else Color(0xFF475569),
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = ver.changeSummary,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF451A03),
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = DateFormatter.formatRelativeTime(ver.recordedAt),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFF92400E).copy(alpha = 0.7f),
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun UploadGuidelinesCard(notice: NoticeModel) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFF8FAFC)
+        ),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.VerifiedUser,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .padding(4.dp)
+                                .size(16.dp)
+                        )
+                    }
+                    Text(
+                        text = "Avoid Form Rejection",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFFFEF2F2)
+                ) {
+                    Text(
+                        text = "Strict Govt Rules",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFFDC2626),
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Photo specification
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = Color(0xFFEFF6FF),
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.CameraAlt,
+                            contentDescription = null,
+                            tint = Color(0xFF2563EB),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Photograph & Live Capture Rules",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1E293B)
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = notice.photoSpecifications ?: "20 KB – 50 KB JPG. Plain white background, clear frontal face (80% coverage). Strictly NO glasses, caps, or side angles.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF475569)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Signature specification
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = Color(0xFFF3E8FF),
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Draw,
+                            contentDescription = null,
+                            tint = Color(0xFF7C3AED),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Signature Upload Criteria",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1E293B)
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = notice.signatureSpecifications ?: "10 KB to 20 KB in JPG format. Black ballpoint pen on plain white paper in running handwriting (block capital letters rejected).",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF475569)
+                    )
+                }
+            }
+
+            // Fee window difference callout
+            if (notice.feePaymentDeadline != null) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFFFFFBEB),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFDE68A)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Schedule,
+                            contentDescription = null,
+                            tint = Color(0xFFD97706),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Column {
+                            Text(
+                                text = "Fee Payment Window Extension",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF92400E)
+                            )
+                            Text(
+                                text = "Online registration closes ${DateFormatter.format(notice.applicationDeadline)}, but online fee payment remains open until ${DateFormatter.format(notice.feePaymentDeadline)}.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF78350F)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun OfflineNoticePdfCard(
+    notice: NoticeModel,
+    isCached: Boolean,
+    cachedSize: String?,
+    isDownloading: Boolean,
+    onDownloadClick: () -> Unit,
+    onOpenClick: () -> Unit,
+    onShareClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isCached) Color(0xFFF0FDF4) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            if (isCached) Color(0xFFBBF7D0) else MaterialTheme.colorScheme.outlineVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (isCached) Color(0xFF16A34A) else MaterialTheme.colorScheme.primary
+                    ) {
+                        Icon(
+                            imageVector = if (isCached) Icons.Default.CheckCircle else Icons.Default.PictureAsPdf,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier
+                                .padding(8.dp)
+                                .size(18.dp)
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = if (isCached) "Official PDF Cached (${cachedSize ?: "Offline"})" else "Official Notice PDF",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isCached) Color(0xFF14532D) else MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = if (isCached) "Ready for instant 0ms offline reading & sharing" else "Cache locally for fast access when govt servers crash",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (isCached) Color(0xFF15803D) else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (isCached) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = onOpenClick,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A))
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Read Offline")
+                    }
+
+                    OutlinedButton(
+                        onClick = onShareClick,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Share PDF")
+                    }
+                }
+            } else {
+                Button(
+                    onClick = onDownloadClick,
+                    enabled = !isDownloading,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    if (isDownloading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Downloading PDF...")
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Download,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Download PDF for Offline Reading")
+                    }
+                }
+            }
+        }
+    }
+}
+
 

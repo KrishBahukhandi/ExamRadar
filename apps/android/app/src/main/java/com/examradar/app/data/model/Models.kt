@@ -85,7 +85,20 @@ data class NoticeModel(
     val ageMax: Int? = null,
     val ageCutoffDate: LocalDate? = null,
     val ageRelaxationSummary: String? = null,
-    val educationalQualification: String? = null
+    val educationalQualification: String? = null,
+    val hasCorrigendum: Boolean = false,
+    val corrigendumSummary: String? = null,
+    val photoSpecifications: String? = null,
+    val signatureSpecifications: String? = null,
+    val feePaymentDeadline: LocalDate? = null
+)
+
+data class NoticeVersionModel(
+    val id: String,
+    val noticeId: String,
+    val versionNumber: Int,
+    val changeSummary: String,
+    val recordedAt: Long
 )
 
 data class CalendarEventModel(

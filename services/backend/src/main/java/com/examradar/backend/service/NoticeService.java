@@ -163,7 +163,13 @@ public class NoticeService {
                 n.getCorrigendumSummary(),
                 n.getPhotoSpecifications(),
                 n.getSignatureSpecifications(),
-                n.getFeePaymentDeadline()
+                n.getFeePaymentDeadline(),
+                n.getTitleHi(),
+                n.getSummaryHi(),
+                n.getExamStages(),
+                n.getNegativeMarking(),
+                n.getExamMode(),
+                n.getSyllabusUrl()
         );
     }
 }

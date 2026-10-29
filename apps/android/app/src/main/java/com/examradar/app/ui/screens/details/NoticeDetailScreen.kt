@@ -2,6 +2,7 @@ package com.examradar.app.ui.screens.details
 
 import android.content.Context
 import android.content.Intent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -15,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -190,6 +192,11 @@ fun NoticeDetailScreen(
             )
         } else {
             val notice = uiState.notice!!
+            var selectedLanguage by rememberSaveable { mutableStateOf("en") }
+            val hasHindi = !notice.titleHi.isNullOrBlank() || !notice.summaryHi.isNullOrBlank()
+            val displayTitle = if (selectedLanguage == "hi" && !notice.titleHi.isNullOrBlank()) notice.titleHi!! else notice.title
+            val displaySummary = if (selectedLanguage == "hi" && !notice.summaryHi.isNullOrBlank()) notice.summaryHi!! else notice.summary
+
             Column(
                 modifier = modifier
                     .fillMaxSize()
@@ -237,9 +244,18 @@ fun NoticeDetailScreen(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Title
+                // Language Accessibility Toggle (English / हिंदी)
+                LanguageToggleBar(
+                    selectedLanguage = selectedLanguage,
+                    onLanguageSelected = { selectedLanguage = it },
+                    hasHindiContent = hasHindi
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Title (Bilingual)
                 Text(
-                    text = notice.title,
+                    text = displayTitle,
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground
@@ -269,7 +285,7 @@ fun NoticeDetailScreen(
                     ) {
                         Column {
                             Text(
-                                text = "Official Gazette Publication",
+                                text = if (selectedLanguage == "hi") "आधिकारिक प्रकाशन तिथि" else "Official Gazette Publication",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -282,7 +298,7 @@ fun NoticeDetailScreen(
 
                         Column(horizontalAlignment = Alignment.End) {
                             Text(
-                                text = "Last Verified",
+                                text = if (selectedLanguage == "hi") "अंतिम सत्यापन" else "Last Verified",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -297,15 +313,15 @@ fun NoticeDetailScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Summary
+                // Summary (Bilingual)
                 Text(
-                    text = "Notification Summary",
+                    text = if (selectedLanguage == "hi") "अधिसूचना सारांश (Summary)" else "Notification Summary",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = notice.summary,
+                    text = displaySummary,
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -314,6 +330,15 @@ fun NoticeDetailScreen(
 
                 // Decision Enablers Hub: "Should I Apply?" (Vacancies, Salary, Fee, Age Eligibility Calculator)
                 DecisionEnablersHub(notice = notice)
+
+                // Exam Pattern & Selection Stages Snapshot
+                if (notice.examStages != null || notice.negativeMarking != null || notice.examMode != null || notice.syllabusUrl != null) {
+                    Spacer(modifier = Modifier.height(18.dp))
+                    ExamPatternCard(
+                        notice = notice,
+                        selectedLanguage = selectedLanguage
+                    )
+                }
 
                 // Avoid Form Rejection: Document & Upload Guidelines Card
                 if (notice.photoSpecifications != null || notice.signatureSpecifications != null || notice.feePaymentDeadline != null) {
@@ -1569,5 +1594,281 @@ fun OfflineNoticePdfCard(
         }
     }
 }
+
+@Composable
+fun LanguageToggleBar(
+    selectedLanguage: String,
+    onLanguageSelected: (String) -> Unit,
+    hasHindiContent: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            // English Pill
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(
+                        if (selectedLanguage == "en") MaterialTheme.colorScheme.primary
+                        else Color.Transparent
+                    )
+                    .clickable { onLanguageSelected("en") }
+                    .padding(vertical = 7.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "🇬🇧 English",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = if (selectedLanguage == "en") FontWeight.Bold else FontWeight.Medium,
+                    color = if (selectedLanguage == "en") MaterialTheme.colorScheme.onPrimary
+                    else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Hindi Pill
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(
+                        if (selectedLanguage == "hi") MaterialTheme.colorScheme.primary
+                        else Color.Transparent
+                    )
+                    .clickable { onLanguageSelected("hi") }
+                    .padding(vertical = 7.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "🇮🇳 हिंदी",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = if (selectedLanguage == "hi") FontWeight.Bold else FontWeight.Medium,
+                    color = if (selectedLanguage == "hi") MaterialTheme.colorScheme.onPrimary
+                    else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        if (hasHindiContent) {
+            Spacer(modifier = Modifier.width(8.dp))
+            Surface(
+                shape = RoundedCornerShape(6.dp),
+                color = Color(0xFFDCFCE7),
+                modifier = Modifier.padding(end = 4.dp)
+            ) {
+                Text(
+                    text = "Bilingual",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFF15803D),
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ExamPatternCard(
+    notice: NoticeModel,
+    selectedLanguage: String,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val isHindi = selectedLanguage == "hi"
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            // Header
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Timeline,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Column {
+                    Text(
+                        text = if (isHindi) "परीक्षा पैटर्न एवं चयन चरण" else "Exam Pattern & Selection Stages",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = if (isHindi) "आधिकारिक चयन प्रक्रिया एवं अंकन योजना" else "Official selection scheme and marking rules",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Badges row: Exam Mode & Negative Marking
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                notice.examMode?.let { mode ->
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = "🖥️", fontSize = 14.sp)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Column {
+                                Text(
+                                    text = if (isHindi) "परीक्षा मोड" else "Exam Mode",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                )
+                                Text(
+                                    text = mode,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
+                        }
+                    }
+                }
+
+                notice.negativeMarking?.let { marking ->
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color(0xFFFEF2F2),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = "⚠️", fontSize = 14.sp)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Column {
+                                Text(
+                                    text = if (isHindi) "नकारात्मक अंकन" else "Negative Marking",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color(0xFF991B1B).copy(alpha = 0.7f)
+                                )
+                                Text(
+                                    text = marking,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF991B1B)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Stages Pipeline
+            notice.examStages?.let { stagesStr ->
+                Spacer(modifier = Modifier.height(14.dp))
+                Text(
+                    text = if (isHindi) "चयन के विभिन्न चरण (Stages)" else "Selection Process Pipeline",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                val stageList = stagesStr.split(Regex("(?=Stage \\d+:|Phase-\\w+:)|, Stage |, Phase |; ")).filter { it.isNotBlank() }
+                stageList.forEachIndexed { index, stageText ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "${index + 1}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = stageText.trim().removePrefix(",").trim(),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+
+            // Syllabus Action
+            notice.syllabusUrl?.let { syllabusLink ->
+                Spacer(modifier = Modifier.height(14.dp))
+                OutlinedButton(
+                    onClick = { CustomTabsHelper.openOfficialUrl(context, syllabusLink) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (isHindi) "विस्तृत आधिकारिक पाठ्यक्रम देखें (Syllabus PDF)" else "View Official Detailed Syllabus (PDF)",
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+    }
+}
+
 
 

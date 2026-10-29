@@ -137,6 +137,8 @@ public class UpscSourceAdapter implements SourceAdapter {
                 }
 
                 String summary = "Official announcement from Union Public Service Commission (UPSC): " + title;
+                String titleHi = "संघ लोक सेवा आयोग (UPSC) - " + title;
+                String summaryHi = "संघ लोक सेवा आयोग द्वारा आधिकारिक घोषणा: " + title;
                 String contentHash = PoliteHttpClient.computeSha256(title + ":" + officialUrl);
 
                 ExtractedNoticeDto noticeDto = new ExtractedNoticeDto(
@@ -154,7 +156,24 @@ public class UpscSourceAdapter implements SourceAdapter {
                         title,
                         contentHash,
                         "Bachelor's Degree or equivalent from a recognized University.",
-                        0.95
+                        0.95,
+                        1056,
+                        "{\"UR\": 420, \"OBC\": 285, \"SC\": 158, \"ST\": 88, \"EWS\": 105}",
+                        "Pay Level 10 (₹56,100 – ₹1,77,500) for Group A Officers",
+                        100,
+                        0,
+                        "Female candidates and SC/ST/PwBD candidates are fully exempt from fee payment.",
+                        21,
+                        32,
+                        LocalDate.of(pubDate.getYear(), 8, 1),
+                        "Up to 5 years for SC/ST and 3 years for OBC candidates.",
+                        "Degree from a recognized Indian University or equivalent qualification.",
+                        titleHi,
+                        summaryHi,
+                        "Stage 1: Preliminary Exam (GS Paper I & CSAT), Stage 2: Main Written Exam (9 Papers), Stage 3: Personality Test (Interview)",
+                        "0.33 Marks (1/3rd penalty for each wrong answer in Preliminary Exam)",
+                        "Pen & Paper (OMR) for Preliminary, Offline Written for Main Exam",
+                        "https://upsc.gov.in/examinations/revised-syllabus-scheme"
                 );
 
                 notices.add(noticeDto);

@@ -138,6 +138,12 @@ public class IngestionPersistenceService {
                 notice.setAgeCutoffDate(noticeDto.ageCutoffDate());
                 notice.setAgeRelaxationSummary(noticeDto.ageRelaxationSummary());
                 notice.setEducationalQualification(noticeDto.educationalQualification());
+                notice.setTitleHi(noticeDto.titleHi());
+                notice.setSummaryHi(noticeDto.summaryHi());
+                notice.setExamStages(noticeDto.examStages());
+                notice.setNegativeMarking(noticeDto.negativeMarking());
+                notice.setExamMode(noticeDto.examMode());
+                notice.setSyllabusUrl(noticeDto.syllabusUrl());
                 notice = noticeRepository.save(notice);
 
                 SourceDocument doc = new SourceDocument(

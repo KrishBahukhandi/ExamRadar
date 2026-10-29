@@ -106,7 +106,13 @@ class EntityMappersTest {
             corrigendumSummary = "Corrigendum #1: Schedule revised",
             photoSpecifications = "20-50KB white background",
             signatureSpecifications = "10-20KB black ink",
-            feePaymentDeadline = LocalDate.of(2026, 3, 6)
+            feePaymentDeadline = LocalDate.of(2026, 3, 6),
+            titleHi = "सिविल सेवा परीक्षा 2026",
+            summaryHi = "1,056 पदों के लिए अधिसूचना",
+            examStages = "Prelims, Mains, Interview",
+            negativeMarking = "0.33 Marks",
+            examMode = "Pen & Paper OMR",
+            syllabusUrl = "https://upsc.gov.in/syllabus"
         )
 
         val entity = model.toEntity()
@@ -126,6 +132,12 @@ class EntityMappersTest {
         assertEquals("20-50KB white background", entity.photoSpecifications)
         assertEquals("10-20KB black ink", entity.signatureSpecifications)
         assertEquals(LocalDate.of(2026, 3, 6), entity.feePaymentDeadline)
+        assertEquals("सिविल सेवा परीक्षा 2026", entity.titleHi)
+        assertEquals("1,056 पदों के लिए अधिसूचना", entity.summaryHi)
+        assertEquals("Prelims, Mains, Interview", entity.examStages)
+        assertEquals("0.33 Marks", entity.negativeMarking)
+        assertEquals("Pen & Paper OMR", entity.examMode)
+        assertEquals("https://upsc.gov.in/syllabus", entity.syllabusUrl)
 
         val mappedBack = entity.toDomainModel()
         assertEquals(model.id, mappedBack.id)
@@ -154,6 +166,12 @@ class EntityMappersTest {
         assertEquals(model.photoSpecifications, mappedBack.photoSpecifications)
         assertEquals(model.signatureSpecifications, mappedBack.signatureSpecifications)
         assertEquals(model.feePaymentDeadline, mappedBack.feePaymentDeadline)
+        assertEquals(model.titleHi, mappedBack.titleHi)
+        assertEquals(model.summaryHi, mappedBack.summaryHi)
+        assertEquals(model.examStages, mappedBack.examStages)
+        assertEquals(model.negativeMarking, mappedBack.negativeMarking)
+        assertEquals(model.examMode, mappedBack.examMode)
+        assertEquals(model.syllabusUrl, mappedBack.syllabusUrl)
     }
 
     @Test

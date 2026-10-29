@@ -17,7 +17,7 @@ import androidx.room.TypeConverters
         ExamEntity::class,
         NoticeEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

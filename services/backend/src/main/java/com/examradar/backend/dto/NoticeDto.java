@@ -43,7 +43,13 @@ public record NoticeDto(
     String corrigendumSummary,
     String photoSpecifications,
     String signatureSpecifications,
-    LocalDate feePaymentDeadline
+    LocalDate feePaymentDeadline,
+    String titleHi,
+    String summaryHi,
+    String examStages,
+    String negativeMarking,
+    String examMode,
+    String syllabusUrl
 ) {
     // Backward compatibility constructor for existing tests/callers (pre-decision-enablers)
     public NoticeDto(
@@ -73,7 +79,8 @@ public record NoticeDto(
                 publishedDate, verificationStatus, applicationDeadline, importantDates,
                 lastCheckedAt, createdAt, updatedAt,
                 null, null, null, null, null, null, null, null, null, null, null,
-                false, null, null, null, null
+                false, null, null, null, null,
+                null, null, null, null, null, null
         );
     }
 }

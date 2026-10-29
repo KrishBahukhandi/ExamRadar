@@ -356,7 +356,13 @@ class ExamRadarApiClient(
             corrigendumSummary = dto.corrigendumSummary,
             photoSpecifications = dto.photoSpecifications,
             signatureSpecifications = dto.signatureSpecifications,
-            feePaymentDeadline = dto.feePaymentDeadline?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+            feePaymentDeadline = dto.feePaymentDeadline?.let { runCatching { LocalDate.parse(it) }.getOrNull() },
+            titleHi = dto.titleHi,
+            summaryHi = dto.summaryHi,
+            examStages = dto.examStages,
+            negativeMarking = dto.negativeMarking,
+            examMode = dto.examMode,
+            syllabusUrl = dto.syllabusUrl
         )
     }
 

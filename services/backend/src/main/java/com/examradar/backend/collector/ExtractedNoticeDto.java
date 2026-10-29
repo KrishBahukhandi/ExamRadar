@@ -32,7 +32,13 @@ public record ExtractedNoticeDto(
     Integer ageMax,
     LocalDate ageCutoffDate,
     String ageRelaxationSummary,
-    String educationalQualification
+    String educationalQualification,
+    String titleHi,
+    String summaryHi,
+    String examStages,
+    String negativeMarking,
+    String examMode,
+    String syllabusUrl
 ) {
     public ExtractedNoticeDto(
             String examId,
@@ -55,7 +61,9 @@ public record ExtractedNoticeDto(
                 examId, sourceId, noticeType, title, summary, officialNoticeUrl, officialApplyUrl,
                 status, verificationStatus, publishedDate, importantDates, rawDocumentContent,
                 contentHash, eligibilitySummary, parserConfidence,
-                null, null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null
         );
     }
 }
+

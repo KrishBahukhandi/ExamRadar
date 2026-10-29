@@ -108,6 +108,24 @@ public class Notice {
     @Column(name = "fee_payment_deadline")
     private LocalDate feePaymentDeadline;
 
+    @Column(name = "title_hi", columnDefinition = "TEXT")
+    private String titleHi;
+
+    @Column(name = "summary_hi", columnDefinition = "TEXT")
+    private String summaryHi;
+
+    @Column(name = "exam_stages", columnDefinition = "TEXT")
+    private String examStages;
+
+    @Column(name = "negative_marking", length = 128)
+    private String negativeMarking;
+
+    @Column(name = "exam_mode", length = 128)
+    private String examMode;
+
+    @Column(name = "syllabus_url", length = 1024)
+    private String syllabusUrl;
+
     public Notice() {}
 
     public Notice(Exam exam, Source source, NoticeType noticeType, String title, String summary,
@@ -216,4 +234,22 @@ public class Notice {
 
     public LocalDate getFeePaymentDeadline() { return feePaymentDeadline; }
     public void setFeePaymentDeadline(LocalDate feePaymentDeadline) { this.feePaymentDeadline = feePaymentDeadline; }
+
+    public String getTitleHi() { return titleHi; }
+    public void setTitleHi(String titleHi) { this.titleHi = titleHi; }
+
+    public String getSummaryHi() { return summaryHi; }
+    public void setSummaryHi(String summaryHi) { this.summaryHi = summaryHi; }
+
+    public String getExamStages() { return examStages; }
+    public void setExamStages(String examStages) { this.examStages = examStages; }
+
+    public String getNegativeMarking() { return negativeMarking; }
+    public void setNegativeMarking(String negativeMarking) { this.negativeMarking = negativeMarking; }
+
+    public String getExamMode() { return examMode; }
+    public void setExamMode(String examMode) { this.examMode = examMode; }
+
+    public String getSyllabusUrl() { return syllabusUrl; }
+    public void setSyllabusUrl(String syllabusUrl) { this.syllabusUrl = syllabusUrl; }
 }

@@ -48,7 +48,13 @@ data class NoticeRemoteDto(
     val corrigendumSummary: String? = null,
     val photoSpecifications: String? = null,
     val signatureSpecifications: String? = null,
-    val feePaymentDeadline: String? = null
+    val feePaymentDeadline: String? = null,
+    val titleHi: String? = null,
+    val summaryHi: String? = null,
+    val examStages: String? = null,
+    val negativeMarking: String? = null,
+    val examMode: String? = null,
+    val syllabusUrl: String? = null
 )
 
 data class NoticeVersionApiResponse(

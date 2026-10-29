@@ -109,7 +109,13 @@ fun NoticeEntity.toDomainModel(): NoticeModel {
         corrigendumSummary = corrigendumSummary,
         photoSpecifications = photoSpecifications,
         signatureSpecifications = signatureSpecifications,
-        feePaymentDeadline = feePaymentDeadline
+        feePaymentDeadline = feePaymentDeadline,
+        titleHi = titleHi,
+        summaryHi = summaryHi,
+        examStages = examStages,
+        negativeMarking = negativeMarking,
+        examMode = examMode,
+        syllabusUrl = syllabusUrl
     )
 }
 
@@ -150,6 +156,12 @@ fun NoticeModel.toEntity(): NoticeEntity {
         corrigendumSummary = corrigendumSummary,
         photoSpecifications = photoSpecifications,
         signatureSpecifications = signatureSpecifications,
-        feePaymentDeadline = feePaymentDeadline
+        feePaymentDeadline = feePaymentDeadline,
+        titleHi = titleHi,
+        summaryHi = summaryHi,
+        examStages = examStages,
+        negativeMarking = negativeMarking,
+        examMode = examMode,
+        syllabusUrl = syllabusUrl
     )
 }

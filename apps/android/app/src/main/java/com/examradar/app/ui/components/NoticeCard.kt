@@ -17,6 +17,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -25,6 +27,7 @@ import com.examradar.app.ui.theme.*
 import com.examradar.app.util.CustomTabsHelper
 import com.examradar.app.util.DateFormatter
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun NoticeCard(
     notice: NoticeModel,
@@ -153,30 +156,30 @@ fun NoticeCard(
             // Decision Enablers Quick-Glance Chips
             if (notice.totalVacancies != null || notice.payScaleSummary != null || notice.applicationFeeGeneral != null || notice.ageMax != null) {
                 Spacer(modifier = Modifier.height(10.dp))
-                Row(
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     if (notice.totalVacancies != null) {
                         Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                            shape = RoundedCornerShape(6.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
                         ) {
                             Text(
                                 text = "👥 %,d Posts".format(notice.totalVacancies),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
                             )
                         }
                     }
 
                     if (notice.payScaleSummary != null) {
                         Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = Color(0xFF0D9488).copy(alpha = 0.12f)
+                            shape = RoundedCornerShape(6.dp),
+                            color = Color(0xFF0D9488).copy(alpha = 0.10f)
                         ) {
                             val shortPay = notice.payScaleSummary.substringBefore(" (")
                             Text(
@@ -186,36 +189,36 @@ fun NoticeCard(
                                 fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
                             )
                         }
                     }
 
                     if (notice.applicationFeeGeneral != null) {
                         Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = Color(0xFF6366F1).copy(alpha = 0.12f)
+                            shape = RoundedCornerShape(6.dp),
+                            color = Color(0xFF6366F1).copy(alpha = 0.10f)
                         ) {
                             Text(
                                 text = if (notice.applicationFeeGeneral == 0) "💳 Free" else "💳 ₹${notice.applicationFeeGeneral}",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = Color(0xFF4F46E5),
                                 fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
                             )
                         }
                     }
 
                     if (notice.ageMin != null && notice.ageMax != null) {
                         Surface(
-                            shape = RoundedCornerShape(4.dp),
+                            shape = RoundedCornerShape(6.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant
                         ) {
                             Text(
                                 text = "Age: ${notice.ageMin}–${notice.ageMax}y",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
                             )
                         }
                     }

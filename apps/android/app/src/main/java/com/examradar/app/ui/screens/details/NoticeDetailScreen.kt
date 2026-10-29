@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
@@ -181,6 +182,63 @@ fun NoticeDetailScreen(
                     }
                 }
             )
+        },
+        bottomBar = {
+            uiState.notice?.let { notice ->
+                Surface(
+                    shadowElevation = 8.dp,
+                    color = MaterialTheme.colorScheme.surface,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .navigationBarsPadding()
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (notice.officialApplyUrl != null) {
+                            Button(
+                                onClick = { CustomTabsHelper.openOfficialUrl(context, notice.officialApplyUrl) },
+                                modifier = Modifier.weight(1.4f),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                            ) {
+                                Icon(imageVector = Icons.Default.OpenInBrowser, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Apply on Portal",
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                if (uiState.isPdfCached) {
+                                    viewModel.openPdf(context)
+                                } else {
+                                    CustomTabsHelper.openOfficialUrl(context, notice.officialNoticeUrl)
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(imageVector = Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (uiState.isPdfCached) "Read PDF" else "Official PDF",
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
         }
     ) { paddingValues ->
         if (uiState.isLoading) {
@@ -193,6 +251,7 @@ fun NoticeDetailScreen(
         } else {
             val notice = uiState.notice!!
             var selectedLanguage by rememberSaveable { mutableStateOf("en") }
+            var selectedTab by rememberSaveable { mutableStateOf(0) }
             val hasHindi = !notice.titleHi.isNullOrBlank() || !notice.summaryHi.isNullOrBlank()
             val displayTitle = if (selectedLanguage == "hi" && !notice.titleHi.isNullOrBlank()) notice.titleHi!! else notice.title
             val displaySummary = if (selectedLanguage == "hi" && !notice.summaryHi.isNullOrBlank()) notice.summaryHi!! else notice.summary
@@ -270,189 +329,217 @@ fun NoticeDetailScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                // Verification and Freshness Info Box
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
+                // Section Navigation Tabs (Overview, Eligibility, Pattern, Documents)
+                TabRow(
+                    selectedTabIndex = selectedTab,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column {
+                    Tab(
+                        selected = selectedTab == 0,
+                        onClick = { selectedTab = 0 },
+                        text = {
                             Text(
-                                text = if (selectedLanguage == "hi") "आधिकारिक प्रकाशन तिथि" else "Official Gazette Publication",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = DateFormatter.format(notice.publishedDate),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold
+                                text = if (selectedLanguage == "hi") "विवरण" else "Overview",
+                                fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal
                             )
                         }
-
-                        Column(horizontalAlignment = Alignment.End) {
+                    )
+                    Tab(
+                        selected = selectedTab == 1,
+                        onClick = { selectedTab = 1 },
+                        text = {
                             Text(
-                                text = if (selectedLanguage == "hi") "अंतिम सत्यापन" else "Last Verified",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = DateFormatter.formatRelativeTime(notice.lastCheckedTimestamp),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold
+                                text = if (selectedLanguage == "hi") "पात्रता व पद" else "Eligibility",
+                                fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal
                             )
                         }
-                    }
+                    )
+                    Tab(
+                        selected = selectedTab == 2,
+                        onClick = { selectedTab = 2 },
+                        text = {
+                            Text(
+                                text = if (selectedLanguage == "hi") "पैटर्न व नियम" else "Pattern",
+                                fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+                    )
+                    Tab(
+                        selected = selectedTab == 3,
+                        onClick = { selectedTab = 3 },
+                        text = {
+                            Text(
+                                text = if (selectedLanguage == "hi") "दस्तावेज़ व PDF" else "Documents",
+                                fontWeight = if (selectedTab == 3) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Summary (Bilingual)
-                Text(
-                    text = if (selectedLanguage == "hi") "अधिसूचना सारांश (Summary)" else "Notification Summary",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = displaySummary,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Decision Enablers Hub: "Should I Apply?" (Vacancies, Salary, Fee, Age Eligibility Calculator)
-                DecisionEnablersHub(notice = notice)
-
-                // Exam Pattern & Selection Stages Snapshot
-                if (notice.examStages != null || notice.negativeMarking != null || notice.examMode != null || notice.syllabusUrl != null) {
-                    Spacer(modifier = Modifier.height(18.dp))
-                    ExamPatternCard(
-                        notice = notice,
-                        selectedLanguage = selectedLanguage
-                    )
-                }
-
-                // Avoid Form Rejection: Document & Upload Guidelines Card
-                if (notice.photoSpecifications != null || notice.signatureSpecifications != null || notice.feePaymentDeadline != null) {
-                    Spacer(modifier = Modifier.height(18.dp))
-                    UploadGuidelinesCard(notice = notice)
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Important Dates Section
-                Text(
-                    text = "Important Dates & Timelines",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                notice.importantDates.forEach { impDate ->
-                    ImportantDateRow(importantDate = impDate)
-                    Spacer(modifier = Modifier.height(6.dp))
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Eligibility Summary Section
-                notice.eligibilitySummary?.let { eligibility ->
-                    Text(
-                        text = "Eligibility Criteria (Summary)",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = Color(0xFFF1F5F9),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = eligibility,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color(0xFF334155),
-                            modifier = Modifier.padding(12.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(20.dp))
-                }
-
-                // Application Checklist Shortcut
-                Button(
-                    onClick = { onOpenChecklist(notice.examId) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
-                ) {
-                    Icon(imageVector = Icons.Default.Checklist, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Open Application Checklist")
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Official External Links
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    if (notice.officialApplyUrl != null) {
-                        Button(
-                            onClick = {
-                                CustomTabsHelper.openOfficialUrl(context, notice.officialApplyUrl)
-                            },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                // Tab Content Switcher
+                when (selectedTab) {
+                    0 -> {
+                        // TAB 0: OVERVIEW & KEY TIMELINES
+                        // Verification and Freshness Info Box
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(imageVector = Icons.Default.OpenInBrowser, contentDescription = null)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Apply Portal")
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column {
+                                    Text(
+                                        text = if (selectedLanguage == "hi") "आधिकारिक प्रकाशन तिथि" else "Official Gazette Publication",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = DateFormatter.format(notice.publishedDate),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(
+                                        text = if (selectedLanguage == "hi") "अंतिम सत्यापन" else "Last Verified",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = DateFormatter.formatRelativeTime(notice.lastCheckedTimestamp),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Summary (Bilingual)
+                        Text(
+                            text = if (selectedLanguage == "hi") "अधिसूचना सारांश (Summary)" else "Notification Summary",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = displaySummary,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        // Important Dates Section
+                        Text(
+                            text = if (selectedLanguage == "hi") "महत्वपूर्ण तिथियां एवं समय-सारणी" else "Important Dates & Timelines",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        notice.importantDates.forEach { impDate ->
+                            ImportantDateRow(importantDate = impDate)
+                            Spacer(modifier = Modifier.height(6.dp))
+                        }
+
+                        // Eligibility Criteria (Summary)
+                        notice.eligibilitySummary?.let { eligibility ->
+                            Spacer(modifier = Modifier.height(18.dp))
+                            Text(
+                                text = if (selectedLanguage == "hi") "पात्रता संक्षेप" else "Eligibility Criteria (Summary)",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color(0xFFF1F5F9),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = eligibility,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color(0xFF334155),
+                                    modifier = Modifier.padding(12.dp)
+                                )
+                            }
+                        }
                     }
 
-                    OutlinedButton(
-                        onClick = {
-                            CustomTabsHelper.openOfficialUrl(context, notice.officialNoticeUrl)
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(imageVector = Icons.Default.PictureAsPdf, contentDescription = null)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Official Notice")
+                    1 -> {
+                        // TAB 1: ELIGIBILITY, SALARY & FEES
+                        DecisionEnablersHub(notice = notice)
+                    }
+
+                    2 -> {
+                        // TAB 2: EXAM PATTERN & AVOID FORM REJECTION GUIDELINES
+                        if (notice.examStages != null || notice.negativeMarking != null || notice.examMode != null || notice.syllabusUrl != null) {
+                            ExamPatternCard(
+                                notice = notice,
+                                selectedLanguage = selectedLanguage
+                            )
+                            Spacer(modifier = Modifier.height(18.dp))
+                        }
+
+                        if (notice.photoSpecifications != null || notice.signatureSpecifications != null || notice.feePaymentDeadline != null) {
+                            UploadGuidelinesCard(notice = notice)
+                        }
+                    }
+
+                    3 -> {
+                        // TAB 3: DOCUMENTS, CHECKLIST & APPLY
+                        OfflineNoticePdfCard(
+                            notice = notice,
+                            isCached = uiState.isPdfCached,
+                            cachedSize = uiState.pdfSize,
+                            isDownloading = uiState.isPdfDownloading,
+                            onDownloadClick = { viewModel.downloadPdf(context) },
+                            onOpenClick = { viewModel.openPdf(context) },
+                            onShareClick = { viewModel.sharePdf(context) }
+                        )
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // Application Checklist Shortcut
+                        Button(
+                            onClick = { onOpenChecklist(notice.examId) },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                        ) {
+                            Icon(imageVector = Icons.Default.Checklist, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Open Application Checklist")
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // WhatsApp / Social Share Card for Aspirants & Study Groups
+                        NoticeShareCard(
+                            notice = notice,
+                            onShareClick = { shareNotice(context, notice) }
+                        )
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        // Independence Disclaimer
+                        IndependenceDisclaimerBanner()
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // WhatsApp / Social Share Card for Aspirants & Study Groups
-                NoticeShareCard(
-                    notice = notice,
-                    onShareClick = { shareNotice(context, notice) }
-                )
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // Official Notice PDF Hub (Offline Cache & 0ms Local Reader)
-                OfflineNoticePdfCard(
-                    notice = notice,
-                    isCached = uiState.isPdfCached,
-                    cachedSize = uiState.pdfSize,
-                    isDownloading = uiState.isPdfDownloading,
-                    onDownloadClick = { viewModel.downloadPdf(context) },
-                    onOpenClick = { viewModel.openPdf(context) },
-                    onShareClick = { viewModel.sharePdf(context) }
-                )
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Independence Disclaimer
-                IndependenceDisclaimerBanner()
+                Spacer(modifier = Modifier.height(28.dp))
             }
         }
     }

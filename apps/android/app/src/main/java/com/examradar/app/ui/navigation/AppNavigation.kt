@@ -189,6 +189,13 @@ fun AppNavigation(
                     },
                     onNotificationsClick = {
                         navController.navigate(Screen.NotificationInbox.route)
+                    },
+                    onSearchClick = {
+                        navController.navigate(Screen.Discovery.route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     }
                 )
             }

@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -125,6 +126,7 @@ fun HomeScreen(
     viewModel: HomeViewModel,
     onNoticeClick: (String) -> Unit,
     onNotificationsClick: () -> Unit,
+    onSearchClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -141,13 +143,20 @@ fun HomeScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
                         Text(
-                            text = "Tracking ${uiState.followedExamsCount} target examinations",
+                            text = if (uiState.followedExamsCount > 0) "Tracking ${uiState.followedExamsCount} target examinations" else "Official Government Exam Notices",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 },
                 actions = {
+                    IconButton(onClick = onSearchClick) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search Examinations",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     IconButton(onClick = onNotificationsClick) {
                         Icon(
                             imageVector = Icons.Default.Notifications,
@@ -248,6 +257,7 @@ fun HomeScreen(
                                     "cat-upsc" to "UPSC",
                                     "cat-ssc" to "SSC",
                                     "cat-banking" to "Banking",
+                                    "cat-state-psc" to "State PSC",
                                     "cat-regulatory" to "Regulatory"
                                 )
                             }

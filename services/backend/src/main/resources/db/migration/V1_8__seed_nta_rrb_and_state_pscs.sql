@@ -87,7 +87,7 @@ ON CONFLICT (id) DO NOTHING;
 
 -- 3. New Exam Registries
 INSERT INTO exams (
-    id, category_id, authority, exam_name, abbreviation,
+    id, category_id, organization, exam_name, exam_code,
     official_portal_url, description, is_active
 )
 VALUES

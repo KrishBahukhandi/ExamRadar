@@ -78,6 +78,9 @@ class ExamRadarMessagingService : FirebaseMessagingService() {
                 )
             }
         }
+
+        // Trigger home screen widget update with latest breaking notice and deadlines
+        com.examradar.app.widget.ExamRadarWidgetProvider.triggerUpdate(applicationContext)
     }
 
     companion object {

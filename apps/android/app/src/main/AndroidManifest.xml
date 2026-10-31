@@ -53,8 +53,23 @@
                 <data
                     android:scheme="examradar"
                     android:host="notice" />
+                <data
+                    android:scheme="examradar"
+                    android:host="study" />
             </intent-filter>
         </activity>
+
+        <!-- Home Screen Countdown & Radar Widget Provider -->
+        <receiver
+            android:name=".widget.ExamRadarWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/examradar_widget_info" />
+        </receiver>
 
         <!-- Firebase Cloud Messaging Push Service -->
         <service

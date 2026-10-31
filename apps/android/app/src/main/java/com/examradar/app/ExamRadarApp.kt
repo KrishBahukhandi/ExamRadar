@@ -35,7 +35,10 @@ class ExamRadarApp : Application() {
         // 2. Schedule periodic background deadline reminder checks
         DeadlineCheckWorker.schedulePeriodicCheck(this)
 
-        // 3. Subscribe to all-notices broadcast topic and register FCM Push token
+        // 3. Update Home Screen Countdown & Radar Widgets
+        com.examradar.app.widget.ExamRadarWidgetProvider.triggerUpdate(this)
+
+        // 4. Subscribe to all-notices broadcast topic and register FCM Push token
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 FirebaseMessaging.getInstance().subscribeToTopic("notices_all")

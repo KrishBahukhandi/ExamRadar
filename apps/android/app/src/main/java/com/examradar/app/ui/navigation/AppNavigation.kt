@@ -219,7 +219,13 @@ fun AppNavigation(
             }
 
             // Study Hub (Preparation Enablers & Blueprint)
-            composable(Screen.Study.route) {
+            composable(
+                route = Screen.Study.route,
+                deepLinks = listOf(
+                    androidx.navigation.navDeepLink { uriPattern = "examradar://study" },
+                    androidx.navigation.navDeepLink { uriPattern = "https://app.examradar.in/study" }
+                )
+            ) {
                 val studyViewModel: com.examradar.app.ui.screens.study.StudyViewModel = viewModel(
                     factory = com.examradar.app.ui.screens.study.StudyViewModel.provideFactory(repository)
                 )

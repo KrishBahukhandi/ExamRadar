@@ -26,6 +26,17 @@ class ExamRadarWidgetProvider : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetIds: IntArray
     ) {
+        // Immediate synchronous visual setup to prevent launcher bind timeout
+        for (appWidgetId in appWidgetIds) {
+            try {
+                val initialViews = RemoteViews(context.packageName, R.layout.widget_exam_countdown)
+                initialViews.setTextViewText(R.id.widget_target_exam, "ExamRadar")
+                initialViews.setTextViewText(R.id.widget_notice_title, "Tracking official notices...")
+                appWidgetManager.updateAppWidget(appWidgetId, initialViews)
+            } catch (_: Exception) {}
+        }
+
+        // Asynchronous Room DB hydration and pending intent binding
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -155,3 +166,4 @@ class ExamRadarWidgetProvider : AppWidgetProvider() {
         }
     }
 }
+

@@ -52,56 +52,57 @@ jobs:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
           mkdir -p apps/android/app
-          TARGET="apps/android/app/google-services.json"
-          rm -f "$TARGET"
+          python3 -c "
+          import os, json, base64
+          target = 'apps/android/app/google-services.json'
+          raw_secret = os.environ.get('GOOGLE_SERVICES_JSON', '').strip()
+          valid = False
 
-          # 1. Attempt raw secret
-          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
-            printf "%s\n" "$GOOGLE_SERVICES_JSON" > "$TARGET"
-          fi
+          if raw_secret:
+              try:
+                  d = json.loads(raw_secret)
+                  if 'project_info' in d:
+                      with open(target, 'w') as f:
+                          json.dump(d, f, indent=2)
+                      valid = True
+              except Exception:
+                  pass
 
-          # 2. If invalid or not containing project_info, attempt base64 decode
-          if ! python3 -c "import json; d=json.load(open('$TARGET')); assert 'project_info' in d" 2>/dev/null; then
-            printf "%s" "$GOOGLE_SERVICES_JSON" | base64 -d > "$TARGET" 2>/dev/null || true
-          fi
+          if not valid and raw_secret:
+              try:
+                  decoded = base64.b64decode(raw_secret).decode('utf-8')
+                  d = json.loads(decoded)
+                  if 'project_info' in d:
+                      with open(target, 'w') as f:
+                          json.dump(d, f, indent=2)
+                      valid = True
+              except Exception:
+                  pass
 
-          # 3. If still invalid or empty, write guaranteed fallback template
-          if ! python3 -c "import json; d=json.load(open('$TARGET')); assert 'project_info' in d" 2>/dev/null; then
-            cat << 'EOF' > "$TARGET"
-{
-  "project_info": {
-    "project_number": "245096169525",
-    "project_id": "examradar-8f2e0",
-    "storage_bucket": "examradar-8f2e0.firebasestorage.app"
-  },
-  "client": [
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:245096169525:android:1f43a631d32630ed10317c",
-        "android_client_info": {
-          "package_name": "in.examradar.app"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "dummy_ci_placeholder_key_not_real"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
-    }
-  ],
-  "configuration_version": "1"
-}
-EOF
-          fi
+          if not valid:
+              fallback = {
+                  'project_info': {
+                      'project_number': '245096169525',
+                      'project_id': 'examradar-8f2e0',
+                      'storage_bucket': 'examradar-8f2e0.firebasestorage.app'
+                  },
+                  'client': [{
+                      'client_info': {
+                          'mobilesdk_app_id': '1:245096169525:android:1f43a631d32630ed10317c',
+                          'android_client_info': {'package_name': 'in.examradar.app'}
+                      },
+                      'oauth_client': [],
+                      'api_key': [{'current_key': 'dummy_ci_placeholder_key_not_real'}],
+                      'services': {'appinvite_service': {'other_platform_oauth_client': []}}
+                  }],
+                  'configuration_version': '1'
+              }
+              with open(target, 'w') as f:
+                  json.dump(fallback, f, indent=2)
 
-          # 4. Strictly assert json validity for Google Services Gradle plugin
-          python3 -c "import json; d=json.load(open('$TARGET')); print('Verified google-services.json project_id:', d['project_info']['project_id'])"
+          d = json.load(open(target))
+          print('Verified google-services.json project_id:', d['project_info']['project_id'])
+          "
 
       - name: Inject local.properties (Supabase keys for CI build)
         env:
@@ -143,56 +144,57 @@ EOF
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
           mkdir -p apps/android/app
-          TARGET="apps/android/app/google-services.json"
-          rm -f "$TARGET"
+          python3 -c "
+          import os, json, base64
+          target = 'apps/android/app/google-services.json'
+          raw_secret = os.environ.get('GOOGLE_SERVICES_JSON', '').strip()
+          valid = False
 
-          # 1. Attempt raw secret
-          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
-            printf "%s\n" "$GOOGLE_SERVICES_JSON" > "$TARGET"
-          fi
+          if raw_secret:
+              try:
+                  d = json.loads(raw_secret)
+                  if 'project_info' in d:
+                      with open(target, 'w') as f:
+                          json.dump(d, f, indent=2)
+                      valid = True
+              except Exception:
+                  pass
 
-          # 2. If invalid or not containing project_info, attempt base64 decode
-          if ! python3 -c "import json; d=json.load(open('$TARGET')); assert 'project_info' in d" 2>/dev/null; then
-            printf "%s" "$GOOGLE_SERVICES_JSON" | base64 -d > "$TARGET" 2>/dev/null || true
-          fi
+          if not valid and raw_secret:
+              try:
+                  decoded = base64.b64decode(raw_secret).decode('utf-8')
+                  d = json.loads(decoded)
+                  if 'project_info' in d:
+                      with open(target, 'w') as f:
+                          json.dump(d, f, indent=2)
+                      valid = True
+              except Exception:
+                  pass
 
-          # 3. If still invalid or empty, write guaranteed fallback template
-          if ! python3 -c "import json; d=json.load(open('$TARGET')); assert 'project_info' in d" 2>/dev/null; then
-            cat << 'EOF' > "$TARGET"
-{
-  "project_info": {
-    "project_number": "245096169525",
-    "project_id": "examradar-8f2e0",
-    "storage_bucket": "examradar-8f2e0.firebasestorage.app"
-  },
-  "client": [
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:245096169525:android:1f43a631d32630ed10317c",
-        "android_client_info": {
-          "package_name": "in.examradar.app"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "dummy_ci_placeholder_key_not_real"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
-    }
-  ],
-  "configuration_version": "1"
-}
-EOF
-          fi
+          if not valid:
+              fallback = {
+                  'project_info': {
+                      'project_number': '245096169525',
+                      'project_id': 'examradar-8f2e0',
+                      'storage_bucket': 'examradar-8f2e0.firebasestorage.app'
+                  },
+                  'client': [{
+                      'client_info': {
+                          'mobilesdk_app_id': '1:245096169525:android:1f43a631d32630ed10317c',
+                          'android_client_info': {'package_name': 'in.examradar.app'}
+                      },
+                      'oauth_client': [],
+                      'api_key': [{'current_key': 'dummy_ci_placeholder_key_not_real'}],
+                      'services': {'appinvite_service': {'other_platform_oauth_client': []}}
+                  }],
+                  'configuration_version': '1'
+              }
+              with open(target, 'w') as f:
+                  json.dump(fallback, f, indent=2)
 
-          # 4. Strictly assert json validity for Google Services Gradle plugin
-          python3 -c "import json; d=json.load(open('$TARGET')); print('Verified google-services.json project_id:', d['project_info']['project_id'])"
+          d = json.load(open(target))
+          print('Verified google-services.json project_id:', d['project_info']['project_id'])
+          "
 
       - name: Decode & write release keystore
         env:

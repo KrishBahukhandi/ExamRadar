@@ -14,13 +14,18 @@ object CustomTabsHelper {
         if (url.isBlank()) return
         try {
             val uri = Uri.parse(url)
+            val scheme = uri.scheme?.lowercase()
+            if (scheme != "http" && scheme != "https") return
             val customTabsIntent = CustomTabsIntent.Builder()
                 .setShowTitle(true)
                 .build()
             customTabsIntent.launchUrl(context, uri)
         } catch (e: Exception) {
             try {
-                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                val uri = Uri.parse(url)
+                val scheme = uri.scheme?.lowercase()
+                if (scheme != "http" && scheme != "https") return
+                val browserIntent = Intent(Intent.ACTION_VIEW, uri)
                 browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 context.startActivity(browserIntent)
             } catch (_: Exception) {

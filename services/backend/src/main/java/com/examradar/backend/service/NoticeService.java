@@ -71,7 +71,12 @@ public class NoticeService {
         String searchParam = (search != null && !search.isBlank()) ? search.trim() : null;
         String examParam = (examId != null && !examId.isBlank()) ? examId.trim() : null;
 
-        Page<Notice> page = noticeRepository.findFiltered(examParam, noticeType, effectiveStatus, searchParam, pageable);
+        Page<Notice> page;
+        if (examParam == null && noticeType == null && searchParam == null && (status == null || status == NoticeStatus.PUBLISHED)) {
+            page = noticeRepository.findPublishedNotices(null, null, pageable);
+        } else {
+            page = noticeRepository.findFiltered(examParam, noticeType, effectiveStatus, searchParam, pageable);
+        }
         if (page.isEmpty()) {
             return Page.empty(pageable);
         }

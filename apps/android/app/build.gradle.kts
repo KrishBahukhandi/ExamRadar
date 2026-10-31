@@ -81,7 +81,10 @@ android {
         }
         debug {
             isMinifyEnabled = false
-            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8085\"")
+            val localApiUrl = localProps.getProperty("API_BASE_URL")
+                ?: System.getenv("API_BASE_URL")
+                ?: "http://192.168.1.5:8085"
+            buildConfigField("String", "API_BASE_URL", "\"$localApiUrl\"")
         }
     }
 

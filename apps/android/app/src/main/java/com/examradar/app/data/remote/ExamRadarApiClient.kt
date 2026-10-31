@@ -16,28 +16,72 @@ class ExamRadarApiClient(
     private val baseUrl: String = BuildConfig.API_BASE_URL
 ) {
     private val client = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
+        .connectTimeout(5, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
         .build()
 
     private val gson = Gson()
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
 
-    fun fetchCategories(): List<CategoryModel>? {
-        return try {
+    private val candidateUrls: List<String> = if (BuildConfig.DEBUG) {
+        listOf(
+            baseUrl,
+            "http://192.168.1.5:8085",
+            "http://127.0.0.1:8085",
+            "http://localhost:8085",
+            "http://10.0.2.2:8085"
+        ).distinct()
+    } else {
+        listOf(baseUrl)
+    }
+
+    @Volatile
+    private var activeBaseUrl: String = baseUrl
+
+    val currentBaseUrl: String
+        get() = activeBaseUrl
+
+    private fun <T> executeWithFailover(block: (String) -> T?): T? {
+        val current = activeBaseUrl
+        val primaryResult = try {
+            block(current)
+        } catch (_: Exception) {
+            null
+        }
+        if (primaryResult != null) return primaryResult
+
+        if (!BuildConfig.DEBUG || candidateUrls.size <= 1) return null
+
+        for (candidate in candidateUrls) {
+            if (candidate == current) continue
+            try {
+                val candidateResult = block(candidate)
+                if (candidateResult != null) {
+                    Log.i("ExamRadarApiClient", "Switched active backend URL to: $candidate")
+                    activeBaseUrl = candidate
+                    return candidateResult
+                }
+            } catch (_: Exception) {
+            }
+        }
+        return null
+    }
+
+    fun fetchCategories(): List<CategoryModel>? = executeWithFailover { host ->
+        try {
             val request = Request.Builder()
-                .url("$baseUrl/api/v1/exams/categories")
+                .url("$host/api/v1/exams/categories")
                 .header("Accept", "application/json")
                 .build()
 
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
-                    Log.w("ExamRadarApiClient", "fetchCategories returned HTTP ${response.code}")
-                    return null
+                    Log.w("ExamRadarApiClient", "fetchCategories returned HTTP ${response.code} from $host")
+                    return@executeWithFailover null
                 }
-                val bodyStr = response.body?.string() ?: return null
+                val bodyStr = response.body?.string() ?: return@executeWithFailover null
                 val apiResponse = gson.fromJson(bodyStr, CategoryApiResponse::class.java)
-                val dtos = apiResponse.data ?: return emptyList()
+                val dtos = apiResponse.data ?: return@executeWithFailover emptyList()
 
                 dtos.map { dto ->
                     CategoryModel(
@@ -50,14 +94,14 @@ class ExamRadarApiClient(
                 }
             }
         } catch (e: Exception) {
-            Log.w("ExamRadarApiClient", "Unable to fetch categories: ${e.message}")
+            Log.w("ExamRadarApiClient", "Unable to fetch categories from $host: ${e.message}")
             null
         }
     }
 
-    fun fetchExams(categoryId: String? = null, search: String? = null): List<ExamModel>? {
-        return try {
-            val urlBuilder = "$baseUrl/api/v1/exams".toHttpUrlOrNull()?.newBuilder() ?: return null
+    fun fetchExams(categoryId: String? = null, search: String? = null): List<ExamModel>? = executeWithFailover { host ->
+        try {
+            val urlBuilder = "$host/api/v1/exams".toHttpUrlOrNull()?.newBuilder() ?: return@executeWithFailover null
             if (!categoryId.isNullOrBlank()) urlBuilder.addQueryParameter("categoryId", categoryId)
             if (!search.isNullOrBlank()) urlBuilder.addQueryParameter("search", search)
 
@@ -68,12 +112,12 @@ class ExamRadarApiClient(
 
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
-                    Log.w("ExamRadarApiClient", "fetchExams returned HTTP ${response.code}")
-                    return null
+                    Log.w("ExamRadarApiClient", "fetchExams returned HTTP ${response.code} from $host")
+                    return@executeWithFailover null
                 }
-                val bodyStr = response.body?.string() ?: return null
+                val bodyStr = response.body?.string() ?: return@executeWithFailover null
                 val apiResponse = gson.fromJson(bodyStr, ExamApiResponse::class.java)
-                val dtos = apiResponse.data ?: return emptyList()
+                val dtos = apiResponse.data ?: return@executeWithFailover emptyList()
 
                 dtos.map { dto ->
                     ExamModel(
@@ -90,33 +134,33 @@ class ExamRadarApiClient(
                 }
             }
         } catch (e: Exception) {
-            Log.w("ExamRadarApiClient", "Unable to fetch exams: ${e.message}")
+            Log.w("ExamRadarApiClient", "Unable to fetch exams from $host: ${e.message}")
             null
         }
     }
 
-    fun fetchNotices(): List<NoticeModel>? {
-        return try {
+    fun fetchNotices(): List<NoticeModel>? = executeWithFailover { host ->
+        try {
             val request = Request.Builder()
-                .url("$baseUrl/api/v1/notices")
+                .url("$host/api/v1/notices")
                 .header("Accept", "application/json")
                 .build()
 
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
-                    Log.w("ExamRadarApiClient", "Server returned HTTP ${response.code}")
-                    return null
+                    Log.w("ExamRadarApiClient", "Server returned HTTP ${response.code} from $host")
+                    return@executeWithFailover null
                 }
-                val bodyStr = response.body?.string() ?: return null
+                val bodyStr = response.body?.string() ?: return@executeWithFailover null
                 val apiResponse = gson.fromJson(bodyStr, NoticeApiResponse::class.java)
-                val dtos = apiResponse.data ?: return emptyList()
+                val dtos = apiResponse.data ?: return@executeWithFailover emptyList()
 
                 dtos.map { dto ->
                     mapDtoToModel(dto)
                 }
             }
         } catch (e: Exception) {
-            Log.w("ExamRadarApiClient", "Unable to fetch live notices: ${e.message}")
+            Log.w("ExamRadarApiClient", "Unable to fetch live notices from $host: ${e.message}")
             null
         }
     }
@@ -124,7 +168,7 @@ class ExamRadarApiClient(
     fun fetchUserPreferences(token: String): UserPreferencesRemoteDto? {
         return try {
             val request = Request.Builder()
-                .url("$baseUrl/api/v1/me/preferences")
+                .url("$activeBaseUrl/api/v1/me/preferences")
                 .header("Authorization", "Bearer $token")
                 .header("Accept", "application/json")
                 .build()
@@ -148,7 +192,7 @@ class ExamRadarApiClient(
         return try {
             val json = gson.toJson(dto)
             val request = Request.Builder()
-                .url("$baseUrl/api/v1/me/preferences")
+                .url("$activeBaseUrl/api/v1/me/preferences")
                 .header("Authorization", "Bearer $token")
                 .header("Content-Type", "application/json")
                 .put(json.toRequestBody(jsonMediaType))
@@ -166,7 +210,7 @@ class ExamRadarApiClient(
     fun fetchNotificationInbox(token: String): List<NotificationInboxItemModel>? {
         return try {
             val request = Request.Builder()
-                .url("$baseUrl/api/v1/me/notifications")
+                .url("$activeBaseUrl/api/v1/me/notifications")
                 .header("Authorization", "Bearer $token")
                 .header("Accept", "application/json")
                 .build()
@@ -203,7 +247,7 @@ class ExamRadarApiClient(
     fun fetchChecklists(token: String): List<ChecklistRemoteDto>? {
         return try {
             val request = Request.Builder()
-                .url("$baseUrl/api/v1/me/checklists")
+                .url("$activeBaseUrl/api/v1/me/checklists")
                 .header("Authorization", "Bearer $token")
                 .header("Accept", "application/json")
                 .build()
@@ -225,7 +269,7 @@ class ExamRadarApiClient(
 
     fun createChecklist(token: String, examId: String): ChecklistRemoteDto? {
         return try {
-            val url = "$baseUrl/api/v1/me/checklists".toHttpUrlOrNull()
+            val url = "$activeBaseUrl/api/v1/me/checklists".toHttpUrlOrNull()
                 ?.newBuilder()
                 ?.addQueryParameter("examId", examId)
                 ?.build() ?: return null
@@ -250,7 +294,7 @@ class ExamRadarApiClient(
 
     fun updateChecklistItem(token: String, checklistId: String, itemKey: String, isCompleted: Boolean): Boolean {
         return try {
-            val url = "$baseUrl/api/v1/me/checklists/$checklistId/items/$itemKey".toHttpUrlOrNull()
+            val url = "$activeBaseUrl/api/v1/me/checklists/$checklistId/items/$itemKey".toHttpUrlOrNull()
                 ?.newBuilder()
                 ?.addQueryParameter("isCompleted", isCompleted.toString())
                 ?.build() ?: return false
@@ -273,7 +317,7 @@ class ExamRadarApiClient(
     fun deleteUserData(token: String): Boolean {
         return try {
             val request = Request.Builder()
-                .url("$baseUrl/api/v1/me/data")
+                .url("$activeBaseUrl/api/v1/me/data")
                 .header("Authorization", "Bearer $token")
                 .delete()
                 .build()
@@ -369,7 +413,7 @@ class ExamRadarApiClient(
     fun fetchNoticeVersions(noticeId: String): List<NoticeVersionModel>? {
         return try {
             val request = Request.Builder()
-                .url("$baseUrl/api/v1/notices/$noticeId/versions")
+                .url("$activeBaseUrl/api/v1/notices/$noticeId/versions")
                 .header("Accept", "application/json")
                 .build()
 
@@ -410,7 +454,7 @@ class ExamRadarApiClient(
             )
             val json = gson.toJson(payload)
             val request = Request.Builder()
-                .url("$baseUrl/api/v1/devices")
+                .url("$activeBaseUrl/api/v1/devices")
                 .header("Authorization", "Bearer $authToken")
                 .post(json.toRequestBody(jsonMediaType))
                 .build()
@@ -427,7 +471,7 @@ class ExamRadarApiClient(
     fun unregisterDeviceToken(authToken: String, fcmToken: String): Boolean {
         return try {
             val request = Request.Builder()
-                .url("$baseUrl/api/v1/devices/$fcmToken")
+                .url("$activeBaseUrl/api/v1/devices/$fcmToken")
                 .header("Authorization", "Bearer $authToken")
                 .delete()
                 .build()

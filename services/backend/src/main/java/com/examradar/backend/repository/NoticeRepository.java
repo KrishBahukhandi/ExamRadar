@@ -24,7 +24,7 @@ public interface NoticeRepository extends JpaRepository<Notice, UUID> {
     Optional<Notice> findByOfficialNoticeUrl(String officialNoticeUrl);
 
     @Query("SELECT n FROM Notice n WHERE n.status = 'PUBLISHED' " +
-           "AND (:examId IS NULL OR n.exam.id = :examId) " +
+           "AND (CAST(:examId AS string) IS NULL OR n.exam.id = :examId) " +
            "AND (:noticeType IS NULL OR n.noticeType = :noticeType) " +
            "ORDER BY n.publishedDate DESC")
     Page<Notice> findPublishedNotices(
@@ -34,10 +34,10 @@ public interface NoticeRepository extends JpaRepository<Notice, UUID> {
     );
 
     @Query("SELECT n FROM Notice n WHERE (:status IS NULL OR n.status = :status) " +
-           "AND (:examId IS NULL OR n.exam.id = :examId) " +
+           "AND (CAST(:examId AS string) IS NULL OR n.exam.id = :examId) " +
            "AND (:noticeType IS NULL OR n.noticeType = :noticeType) " +
-           "AND (:search IS NULL OR LOWER(n.title) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "     OR (n.summary IS NOT NULL AND LOWER(n.summary) LIKE LOWER(CONCAT('%', :search, '%')))) " +
+           "AND (CAST(:search AS string) IS NULL OR LOWER(n.title) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')) " +
+           "     OR (n.summary IS NOT NULL AND LOWER(n.summary) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')))) " +
            "ORDER BY n.publishedDate DESC")
     List<Notice> findFiltered(
             @Param("examId") String examId,
@@ -47,10 +47,10 @@ public interface NoticeRepository extends JpaRepository<Notice, UUID> {
     );
 
     @Query("SELECT n FROM Notice n WHERE (:status IS NULL OR n.status = :status) " +
-           "AND (:examId IS NULL OR n.exam.id = :examId) " +
+           "AND (CAST(:examId AS string) IS NULL OR n.exam.id = :examId) " +
            "AND (:noticeType IS NULL OR n.noticeType = :noticeType) " +
-           "AND (:search IS NULL OR LOWER(n.title) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "     OR (n.summary IS NOT NULL AND LOWER(n.summary) LIKE LOWER(CONCAT('%', :search, '%')))) " +
+           "AND (CAST(:search AS string) IS NULL OR LOWER(n.title) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')) " +
+           "     OR (n.summary IS NOT NULL AND LOWER(n.summary) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')))) " +
            "ORDER BY n.publishedDate DESC")
     Page<Notice> findFiltered(
             @Param("examId") String examId,

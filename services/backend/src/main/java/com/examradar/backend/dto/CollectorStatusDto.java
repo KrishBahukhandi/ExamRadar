@@ -21,3 +21,4 @@ public record CollectorStatusDto(
         long totalMemoryMb,
         long maxMemoryMb
 ) {}
+

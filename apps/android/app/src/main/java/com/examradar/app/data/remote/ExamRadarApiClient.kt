@@ -26,6 +26,7 @@ class ExamRadarApiClient(
     private val candidateUrls: List<String> = if (BuildConfig.DEBUG) {
         listOf(
             baseUrl,
+            "https://examradar.onrender.com",
             "http://192.168.1.5:8085",
             "http://127.0.0.1:8085",
             "http://localhost:8085",

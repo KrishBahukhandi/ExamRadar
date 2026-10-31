@@ -676,56 +676,56 @@ CREATE POLICY "Public read for source health snapshots"
 DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
 CREATE POLICY "Users can view own profile"
     ON profiles FOR SELECT
-    USING (auth.uid() = id);
+    USING ((select auth.uid()) = id);
 
 DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
 CREATE POLICY "Users can insert own profile"
     ON profiles FOR INSERT
-    WITH CHECK (auth.uid() = id);
+    WITH CHECK ((select auth.uid()) = id);
 
 DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
 CREATE POLICY "Users can update own profile"
     ON profiles FOR UPDATE
-    USING (auth.uid() = id)
-    WITH CHECK (auth.uid() = id);
+    USING ((select auth.uid()) = id)
+    WITH CHECK ((select auth.uid()) = id);
 
 DROP POLICY IF EXISTS "Users can delete own profile" ON profiles;
 CREATE POLICY "Users can delete own profile"
     ON profiles FOR DELETE
-    USING (auth.uid() = id);
+    USING ((select auth.uid()) = id);
 
 -- User Exam Preferences
 DROP POLICY IF EXISTS "Users can view own exam preferences" ON user_exam_preferences;
 CREATE POLICY "Users can view own exam preferences"
     ON user_exam_preferences FOR SELECT
-    USING (auth.uid() = user_id);
+    USING ((select auth.uid()) = user_id);
 
 DROP POLICY IF EXISTS "Users can manage own exam preferences" ON user_exam_preferences;
 CREATE POLICY "Users can manage own exam preferences"
     ON user_exam_preferences FOR ALL
-    USING (auth.uid() = user_id)
-    WITH CHECK (auth.uid() = user_id);
+    USING ((select auth.uid()) = user_id)
+    WITH CHECK ((select auth.uid()) = user_id);
 
 -- Notification Preferences
 DROP POLICY IF EXISTS "Users can manage own notification preferences" ON notification_preferences;
 CREATE POLICY "Users can manage own notification preferences"
     ON notification_preferences FOR ALL
-    USING (auth.uid() = user_id)
-    WITH CHECK (auth.uid() = user_id);
+    USING ((select auth.uid()) = user_id)
+    WITH CHECK ((select auth.uid()) = user_id);
 
 -- Device Tokens
 DROP POLICY IF EXISTS "Users can manage own device tokens" ON device_tokens;
 CREATE POLICY "Users can manage own device tokens"
     ON device_tokens FOR ALL
-    USING (auth.uid() = user_id)
-    WITH CHECK (auth.uid() = user_id);
+    USING ((select auth.uid()) = user_id)
+    WITH CHECK ((select auth.uid()) = user_id);
 
 -- Checklists
 DROP POLICY IF EXISTS "Users can manage own checklists" ON application_checklists;
 CREATE POLICY "Users can manage own checklists"
     ON application_checklists FOR ALL
-    USING (auth.uid() = user_id)
-    WITH CHECK (auth.uid() = user_id);
+    USING ((select auth.uid()) = user_id)
+    WITH CHECK ((select auth.uid()) = user_id);
 
 -- Checklist Items
 DROP POLICY IF EXISTS "Users can manage own checklist items" ON application_checklist_items;
@@ -733,11 +733,11 @@ CREATE POLICY "Users can manage own checklist items"
     ON application_checklist_items FOR ALL
     USING (EXISTS (
         SELECT 1 FROM application_checklists c
-        WHERE c.id = application_checklist_items.checklist_id AND c.user_id = auth.uid()
+        WHERE c.id = application_checklist_items.checklist_id AND c.user_id = (select auth.uid())
     ))
     WITH CHECK (EXISTS (
         SELECT 1 FROM application_checklists c
-        WHERE c.id = application_checklist_items.checklist_id AND c.user_id = auth.uid()
+        WHERE c.id = application_checklist_items.checklist_id AND c.user_id = (select auth.uid())
     ));
 
 -- ============================================================================
@@ -772,7 +772,7 @@ BEGIN
 
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
@@ -786,7 +786,7 @@ BEGIN
     NEW.email_confirmed_at = NOW();
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth;
 
 DROP TRIGGER IF EXISTS on_auth_user_auto_confirm ON auth.users;
 CREATE TRIGGER on_auth_user_auto_confirm

@@ -5,6 +5,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -36,6 +37,7 @@ import com.examradar.app.ui.screens.notifications.NotificationInboxScreen
 import com.examradar.app.ui.screens.notifications.NotificationInboxViewModel
 import com.examradar.app.ui.screens.notifications.NotificationSettingsScreen
 import com.examradar.app.ui.screens.notifications.NotificationSettingsViewModel
+import com.examradar.app.ui.screens.study.StudyScreen
 import com.examradar.app.ui.screens.auth.AuthScreen
 import com.examradar.app.ui.screens.auth.AuthViewModel
 import com.examradar.app.ui.screens.onboarding.OnboardingScreen
@@ -96,7 +98,7 @@ fun AppNavigation(
     val bottomNavRoutes = setOf(
         Screen.Home.route,
         Screen.Discovery.route,
-        Screen.Calendar.route,
+        Screen.Study.route,
         Screen.Account.route
     )
     val showBottomBar = currentRoute in bottomNavRoutes
@@ -130,11 +132,11 @@ fun AppNavigation(
                         }
                     )
                     NavigationBarItem(
-                        icon = { Icon(Icons.Default.CalendarMonth, contentDescription = "Calendar") },
-                        label = { Text("Calendar") },
-                        selected = currentRoute == Screen.Calendar.route,
+                        icon = { Icon(Icons.Default.School, contentDescription = "Study") },
+                        label = { Text("Study") },
+                        selected = currentRoute == Screen.Study.route,
                         onClick = {
-                            navController.navigate(Screen.Calendar.route) {
+                            navController.navigate(Screen.Study.route) {
                                 popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                                 launchSingleTop = true
                                 restoreState = true
@@ -190,6 +192,9 @@ fun AppNavigation(
                     onNotificationsClick = {
                         navController.navigate(Screen.NotificationInbox.route)
                     },
+                    onCalendarClick = {
+                        navController.navigate(Screen.Calendar.route)
+                    },
                     onSearchClick = {
                         navController.navigate(Screen.Discovery.route) {
                             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
@@ -213,6 +218,11 @@ fun AppNavigation(
                 )
             }
 
+            // Study Hub (Preparation Enablers & Blueprint)
+            composable(Screen.Study.route) {
+                StudyScreen()
+            }
+
             // Calendar
             composable(Screen.Calendar.route) {
                 val calendarViewModel: CalendarViewModel = viewModel(
@@ -222,7 +232,8 @@ fun AppNavigation(
                     viewModel = calendarViewModel,
                     onNoticeClick = { noticeId ->
                         navController.navigate(Screen.NoticeDetail.createRoute(noticeId))
-                    }
+                    },
+                    onBackClick = { navController.popBackStack() }
                 )
             }
 

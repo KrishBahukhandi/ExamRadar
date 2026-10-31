@@ -4,6 +4,7 @@ sealed class Screen(val route: String) {
     object Onboarding : Screen("onboarding")
     object Home : Screen("home")
     object Discovery : Screen("discovery")
+    object Study : Screen("study")
     object Calendar : Screen("calendar")
     object Checklist : Screen("checklist/{examId}") {
         fun createRoute(examId: String) = "checklist/$examId"

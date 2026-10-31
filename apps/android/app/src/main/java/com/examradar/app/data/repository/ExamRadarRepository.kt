@@ -80,11 +80,18 @@ interface NotificationInboxRepository {
     suspend fun refreshNotificationInbox(): Boolean
 }
 
+interface StudyRepository {
+    fun getSyllabusTopics(examId: String): Flow<List<SyllabusTopicEntity>>
+    fun getSyllabusProgress(examId: String): Flow<Pair<Int, Int>>
+    suspend fun setTopicCompleted(topicId: String, isCompleted: Boolean)
+    suspend fun ensureSyllabusSeeded()
+}
+
 /**
  * Composite repository contract combining domain sub-repositories.
  * Preserves binary compatibility with existing ViewModel factories.
  */
-interface ExamRadarRepository : NoticeRepository, ExamCatalogRepository, UserPreferencesDomainRepository, ChecklistRepository, AuthRepository, NotificationInboxRepository
+interface ExamRadarRepository : NoticeRepository, ExamCatalogRepository, UserPreferencesDomainRepository, ChecklistRepository, AuthRepository, NotificationInboxRepository, StudyRepository
 
 class ExamRadarRepositoryImpl(
     private val preferencesRepository: UserPreferencesRepository,
@@ -120,6 +127,7 @@ class ExamRadarRepositoryImpl(
                     if (dbNotices.isNotEmpty()) {
                         liveNotices.value = dbNotices.map { it.toDomainModel() }
                     }
+                    ensureSyllabusSeeded()
                 }
             }
             refreshNotices()
@@ -640,5 +648,36 @@ class ExamRadarRepositoryImpl(
             }
         }
         return false
+    }
+
+    override fun getSyllabusTopics(examId: String): Flow<List<SyllabusTopicEntity>> {
+        val syllabusDao = database?.syllabusDao() ?: return flow { emit(com.examradar.app.data.study.SyllabusSeedData.getAllSeedTopics().filter { it.examId == examId }) }
+        return syllabusDao.getTopicsForExam(examId)
+    }
+
+    override fun getSyllabusProgress(examId: String): Flow<Pair<Int, Int>> {
+        val syllabusDao = database?.syllabusDao() ?: return flow { emit(Pair(0, 0)) }
+        return combine(syllabusDao.getCompletedCount(examId), syllabusDao.getTotalCount(examId)) { completed, total ->
+            Pair(completed, total)
+        }
+    }
+
+    override suspend fun setTopicCompleted(topicId: String, isCompleted: Boolean) {
+        val syllabusDao = database?.syllabusDao() ?: return
+        val timestamp = if (isCompleted) System.currentTimeMillis() else null
+        syllabusDao.setTopicCompleted(topicId, isCompleted, timestamp)
+    }
+
+    override suspend fun ensureSyllabusSeeded() {
+        val syllabusDao = database?.syllabusDao() ?: return
+        try {
+            if (syllabusDao.getGlobalTopicCount() == 0) {
+                val seed = com.examradar.app.data.study.SyllabusSeedData.getAllSeedTopics()
+                syllabusDao.insertTopicsIfNotExist(seed)
+                Log.i("ExamRadarRepo", "Successfully initialized ${seed.size} official syllabus topics")
+            }
+        } catch (e: Exception) {
+            Log.w("ExamRadarRepo", "Error seeding syllabus topics: ${e.message}")
+        }
     }
 }

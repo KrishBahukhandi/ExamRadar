@@ -86,3 +86,22 @@ data class NoticeEntity(
     val examMode: String? = null,
     val syllabusUrl: String? = null
 )
+
+@Entity(
+    tableName = "syllabus_topics",
+    indices = [
+        Index(value = ["examId"]),
+        Index(value = ["examId", "stage"]),
+        Index(value = ["examId", "stage", "subject"])
+    ]
+)
+data class SyllabusTopicEntity(
+    @PrimaryKey val id: String,
+    val examId: String,
+    val stage: String,        // e.g. "Prelims", "Mains", "Tier 1", "Tier 2"
+    val subject: String,      // e.g. "Indian Polity & Governance", "Quantitative Aptitude"
+    val title: String,        // e.g. "Fundamental Rights & DPSP", "Number System & Divisibility"
+    val isCompleted: Boolean = false,
+    val completedAt: Long? = null,
+    val sortOrder: Int = 0
+)

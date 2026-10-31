@@ -65,3 +65,31 @@ interface NoticeDao {
     @Query("DELETE FROM notices")
     suspend fun clearNotices()
 }
+
+@Dao
+interface SyllabusDao {
+
+    @Query("SELECT * FROM syllabus_topics WHERE examId = :examId ORDER BY stage ASC, sortOrder ASC")
+    fun getTopicsForExam(examId: String): Flow<List<SyllabusTopicEntity>>
+
+    @Query("SELECT * FROM syllabus_topics WHERE examId = :examId AND stage = :stage ORDER BY sortOrder ASC")
+    fun getTopicsForExamAndStage(examId: String, stage: String): Flow<List<SyllabusTopicEntity>>
+
+    @Query("SELECT DISTINCT stage FROM syllabus_topics WHERE examId = :examId")
+    fun getStagesForExam(examId: String): Flow<List<String>>
+
+    @Query("SELECT COUNT(*) FROM syllabus_topics WHERE examId = :examId")
+    fun getTotalCount(examId: String): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM syllabus_topics WHERE examId = :examId AND isCompleted = 1")
+    fun getCompletedCount(examId: String): Flow<Int>
+
+    @Query("UPDATE syllabus_topics SET isCompleted = :isCompleted, completedAt = :completedAt WHERE id = :topicId")
+    suspend fun setTopicCompleted(topicId: String, isCompleted: Boolean, completedAt: Long?)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertTopicsIfNotExist(topics: List<SyllabusTopicEntity>)
+
+    @Query("SELECT COUNT(*) FROM syllabus_topics")
+    suspend fun getGlobalTopicCount(): Int
+}

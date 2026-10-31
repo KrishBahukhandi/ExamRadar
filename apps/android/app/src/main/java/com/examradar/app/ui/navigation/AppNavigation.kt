@@ -220,7 +220,10 @@ fun AppNavigation(
 
             // Study Hub (Preparation Enablers & Blueprint)
             composable(Screen.Study.route) {
-                StudyScreen()
+                val studyViewModel: com.examradar.app.ui.screens.study.StudyViewModel = viewModel(
+                    factory = com.examradar.app.ui.screens.study.StudyViewModel.provideFactory(repository)
+                )
+                StudyScreen(viewModel = studyViewModel)
             }
 
             // Calendar

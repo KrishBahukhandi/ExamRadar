@@ -27,6 +27,22 @@ public class NotificationDispatcherService {
     private final NotificationPreferenceRepository notificationPreferenceRepository;
     private final NotificationJobRepository notificationJobRepository;
     private final NotificationEventRepository notificationEventRepository;
+    private final FcmPushService fcmPushService;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public NotificationDispatcherService(
+            UserExamPreferenceRepository userExamPreferenceRepository,
+            NotificationPreferenceRepository notificationPreferenceRepository,
+            NotificationJobRepository notificationJobRepository,
+            NotificationEventRepository notificationEventRepository,
+            FcmPushService fcmPushService
+    ) {
+        this.userExamPreferenceRepository = userExamPreferenceRepository;
+        this.notificationPreferenceRepository = notificationPreferenceRepository;
+        this.notificationJobRepository = notificationJobRepository;
+        this.notificationEventRepository = notificationEventRepository;
+        this.fcmPushService = fcmPushService;
+    }
 
     public NotificationDispatcherService(
             UserExamPreferenceRepository userExamPreferenceRepository,
@@ -34,10 +50,7 @@ public class NotificationDispatcherService {
             NotificationJobRepository notificationJobRepository,
             NotificationEventRepository notificationEventRepository
     ) {
-        this.userExamPreferenceRepository = userExamPreferenceRepository;
-        this.notificationPreferenceRepository = notificationPreferenceRepository;
-        this.notificationJobRepository = notificationJobRepository;
-        this.notificationEventRepository = notificationEventRepository;
+        this(userExamPreferenceRepository, notificationPreferenceRepository, notificationJobRepository, notificationEventRepository, null);
     }
 
     /**
@@ -54,6 +67,33 @@ public class NotificationDispatcherService {
         String examId = notice.getExam().getId();
         log.info("Evaluating notification recipients for notice [{}] ({}) of exam [{}]",
                 notice.getId(), eventType, examId);
+
+        // 0. Immediate broadcast to FCM topic subscribers (instant push to all devices following exam)
+        try {
+            String examName = (notice.getExam() != null && notice.getExam().getExamName() != null)
+                    ? notice.getExam().getExamName()
+                    : "Government Exam";
+            String topicTitle = formatTopicTitle(eventType, examName);
+            String topicBody = notice.getTitle() != null ? notice.getTitle() : "Official announcement published";
+
+            Map<String, String> data = Map.of(
+                    "noticeId", notice.getId() != null ? notice.getId().toString() : "",
+                    "notice_id", notice.getId() != null ? notice.getId().toString() : "",
+                    "examId", examId,
+                    "exam_id", examId,
+                    "exam_name", examName,
+                    "type", "NOTICE",
+                    "official_url", notice.getOfficialNoticeUrl() != null ? notice.getOfficialNoticeUrl() : "",
+                    "targetScreen", "notice_detail"
+            );
+
+            if (fcmPushService != null) {
+                fcmPushService.broadcastToTopic("exam_" + examId.replace("-", "_"), topicTitle, topicBody, data);
+                fcmPushService.broadcastToTopic("notices_all", topicTitle, topicBody, data);
+            }
+        } catch (Exception e) {
+            log.error("Failed to broadcast notice to FCM topics: {}", e.getMessage());
+        }
 
         // Find users following this exam
         List<UserExamPreference> preferences;
@@ -138,5 +178,15 @@ public class NotificationDispatcherService {
 
         log.info("Batch dispatched {} notification jobs for notice [{}]", createdJobs.size(), notice.getId());
         return createdJobs;
+    }
+
+    private String formatTopicTitle(NotificationEventType type, String examName) {
+        if (type == null) return "ExamRadar: Announcement — " + examName;
+        return switch (type) {
+            case NEW_NOTICE -> "ExamRadar: New " + examName + " Announcement";
+            case DEADLINE_REVISED -> "ExamRadar: Schedule Revised — " + examName;
+            case RESULT_OUT -> "ExamRadar: Result Declared — " + examName;
+            default -> "ExamRadar: " + examName + " Alert";
+        };
     }
 }

@@ -123,14 +123,42 @@ class UserPreferencesRepository(private val context: Context) {
     }
 
     suspend fun updateFollowedExams(exams: Set<String>) {
-        context.dataStore.edit { it[Keys.FOLLOWED_EXAMS] = exams }
+        context.dataStore.edit { prefs ->
+            val oldExams = prefs[Keys.FOLLOWED_EXAMS] ?: emptySet()
+            prefs[Keys.FOLLOWED_EXAMS] = exams
+
+            try {
+                (exams - oldExams).forEach { examId ->
+                    val cleanTopic = "exam_" + examId.replace("-", "_")
+                    com.google.firebase.messaging.FirebaseMessaging.getInstance().subscribeToTopic(cleanTopic)
+                }
+                (oldExams - exams).forEach { examId ->
+                    val cleanTopic = "exam_" + examId.replace("-", "_")
+                    com.google.firebase.messaging.FirebaseMessaging.getInstance().unsubscribeFromTopic(cleanTopic)
+                }
+            } catch (e: Exception) {
+                Log.w("UserPreferencesRepo", "Error updating FCM topic subscriptions: ${e.message}")
+            }
+        }
     }
 
     suspend fun toggleFollowExam(examId: String) {
+        val cleanTopic = "exam_" + examId.replace("-", "_")
         context.dataStore.edit { prefs ->
             val current = prefs[Keys.FOLLOWED_EXAMS] ?: emptySet()
-            val updated = if (current.contains(examId)) current - examId else current + examId
+            val isNowFollowing = !current.contains(examId)
+            val updated = if (isNowFollowing) current + examId else current - examId
             prefs[Keys.FOLLOWED_EXAMS] = updated
+
+            try {
+                if (isNowFollowing) {
+                    com.google.firebase.messaging.FirebaseMessaging.getInstance().subscribeToTopic(cleanTopic)
+                } else {
+                    com.google.firebase.messaging.FirebaseMessaging.getInstance().unsubscribeFromTopic(cleanTopic)
+                }
+            } catch (e: Exception) {
+                Log.w("UserPreferencesRepo", "Error toggling FCM topic $cleanTopic: ${e.message}")
+            }
         }
     }
 

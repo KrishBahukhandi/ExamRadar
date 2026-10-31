@@ -42,6 +42,7 @@ public class NoticeService {
         this.versionRepository = versionRepository;
     }
 
+    @org.springframework.cache.annotation.Cacheable(value = com.examradar.backend.config.CacheConfig.CACHE_NOTICES, key = "{#examId, #noticeType, #status, #search}")
     public List<NoticeDto> getNotices(String examId, NoticeType noticeType, NoticeStatus status, String search) {
         NoticeStatus effectiveStatus = (status != null) ? status : NoticeStatus.PUBLISHED;
         String searchParam = (search != null && !search.isBlank()) ? search.trim() : null;
@@ -89,6 +90,7 @@ public class NoticeService {
         return page.map(n -> toDto(n, datesByNoticeId.getOrDefault(n.getId(), List.of())));
     }
 
+    @org.springframework.cache.annotation.Cacheable(value = com.examradar.backend.config.CacheConfig.CACHE_NOTICES, key = "#id")
     public NoticeDto getNoticeById(UUID id) {
         Notice notice = noticeRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Notice not found: " + id));

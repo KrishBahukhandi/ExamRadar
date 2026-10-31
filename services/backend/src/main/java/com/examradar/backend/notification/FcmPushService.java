@@ -341,4 +341,38 @@ public class FcmPushService {
             case RESULT_OUT -> "Official result announcement has been published. Check scorecard and cutoff details: " + title;
         };
     }
+
+    /**
+     * Broadcasts a high-priority notification to an FCM topic (e.g. topic "notices_all" or "exam_upsc_cse").
+     * Supports simultaneous distribution to thousands of active client devices in a single call.
+     */
+    public String broadcastToTopic(String topic, String title, String body, java.util.Map<String, String> data) {
+        String cleanTopic = topic.replaceAll("[^a-zA-Z0-9-_.~%]", "_");
+        if (isFirebaseInitialized) {
+            try {
+                Message.Builder builder = Message.builder()
+                        .setTopic(cleanTopic)
+                        .setNotification(com.google.firebase.messaging.Notification.builder()
+                                .setTitle(title)
+                                .setBody(body)
+                                .build());
+
+                if (data != null && !data.isEmpty()) {
+                    builder.putAllData(data);
+                }
+
+                String messageId = FirebaseMessaging.getInstance().send(builder.build());
+                log.info("Successfully broadcast FCM message [{}] to topic [{}]", messageId, cleanTopic);
+                return messageId;
+            } catch (Exception e) {
+                log.error("Error broadcasting to FCM topic [{}]: {}", cleanTopic, e.getMessage());
+                return null;
+            }
+        } else {
+            String simId = "simulated-topic-" + UUID.randomUUID();
+            log.info("[SIMULATED FCM TOPIC] Broadcast to [{}]: title='{}', body='{}' (msgId={})",
+                    cleanTopic, title, body, simId);
+            return simId;
+        }
+    }
 }

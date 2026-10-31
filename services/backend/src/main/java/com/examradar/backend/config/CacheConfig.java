@@ -25,6 +25,7 @@ public class CacheConfig {
     public static final String CACHE_EXAMS = "exams";
     public static final String CACHE_EXAM_BY_ID = "examById";
     public static final String CACHE_SOURCES = "sources";
+    public static final String CACHE_NOTICES = "notices";
 
     @Bean
     public CacheManager cacheManager() {
@@ -33,7 +34,8 @@ public class CacheConfig {
                 buildCache(CACHE_EXAM_CATEGORIES, 60, TimeUnit.MINUTES, 100),
                 buildCache(CACHE_EXAMS, 30, TimeUnit.MINUTES, 1000),
                 buildCache(CACHE_EXAM_BY_ID, 30, TimeUnit.MINUTES, 500),
-                buildCache(CACHE_SOURCES, 30, TimeUnit.MINUTES, 100)
+                buildCache(CACHE_SOURCES, 30, TimeUnit.MINUTES, 100),
+                buildCache(CACHE_NOTICES, 3, TimeUnit.MINUTES, 1000)
         );
         cacheManager.setCaches(caches);
         return cacheManager;

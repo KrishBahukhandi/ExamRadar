@@ -35,9 +35,16 @@ class ExamRadarApp : Application() {
         // 2. Schedule periodic background deadline reminder checks
         DeadlineCheckWorker.schedulePeriodicCheck(this)
 
-        // 3. Register FCM Push token if already authenticated
+        // 3. Subscribe to all-notices broadcast topic and register FCM Push token
         CoroutineScope(Dispatchers.IO).launch {
             try {
+                FirebaseMessaging.getInstance().subscribeToTopic("notices_all")
+                    .addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            Log.i("ExamRadarApp", "Subscribed to global FCM topic: notices_all")
+                        }
+                    }
+
                 FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
                     if (task.isSuccessful) {
                         val token = task.result

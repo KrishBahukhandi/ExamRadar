@@ -5,7 +5,9 @@ import com.examradar.backend.domain.NotificationJob;
 import com.examradar.backend.domain.ParserFailure;
 import com.examradar.backend.domain.SourceFetchRun;
 import com.examradar.backend.dto.ApiResponse;
+import com.examradar.backend.dto.CollectorStatusDto;
 import com.examradar.backend.dto.SourceHealthDto;
+import com.examradar.backend.scheduler.ScheduledAutomationService;
 import com.examradar.backend.service.AdminService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -63,5 +65,29 @@ public class AdminController {
     @Operation(summary = "Manually trigger processing of all pending due notification jobs")
     public ApiResponse<Integer> processDueNotifications() {
         return ApiResponse.ok("Processed due notification jobs", adminService.processDueNotifications());
+    }
+
+    @GetMapping("/collector/status")
+    @Operation(summary = "Get live collector engine status, schedule metrics, and JVM memory profile")
+    public ApiResponse<CollectorStatusDto> getCollectorStatus() {
+        return ApiResponse.ok(adminService.getCollectorStatus());
+    }
+
+    @PostMapping("/collector/trigger-all")
+    @Operation(summary = "Manually trigger on-demand ingestion across all enabled official exam sources")
+    public ApiResponse<ScheduledAutomationService.IngestionRunResult> triggerAllSources() {
+        ScheduledAutomationService.IngestionRunResult result = adminService.triggerAllSources();
+        return ApiResponse.ok("Collector multi-source execution finished", result);
+    }
+
+    @PostMapping("/notifications/test-topic")
+    @Operation(summary = "Broadcast a test push notification to an FCM topic")
+    public ApiResponse<String> broadcastTestTopic(
+            @RequestParam(required = false, defaultValue = "notices_all") String topic,
+            @RequestParam(required = false, defaultValue = "ExamRadar Live Test") String title,
+            @RequestParam(required = false, defaultValue = "Testing real-time push delivery to your device.") String body
+    ) {
+        String messageId = adminService.broadcastTestTopic(topic, title, body);
+        return ApiResponse.ok("Test broadcast dispatched", messageId);
     }
 }

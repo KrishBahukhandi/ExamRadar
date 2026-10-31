@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface SourceRepository extends JpaRepository<Source, String> {
     List<Source> findByIsEnabledTrue();
+    long countByIsEnabledTrue();
 }

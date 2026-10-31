@@ -18,4 +18,5 @@ public interface NotificationJobRepository extends JpaRepository<NotificationJob
     List<NotificationJob> findByStatusAndScheduledAtLessThanEqual(JobStatus status, OffsetDateTime time);
     List<NotificationJob> findByNoticeIdAndStatus(UUID noticeId, JobStatus status);
     List<NotificationJob> findTop50ByUserIdOrderByScheduledAtDesc(UUID userId);
+    long countByStatus(JobStatus status);
 }

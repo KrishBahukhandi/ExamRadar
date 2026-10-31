@@ -39,6 +39,9 @@ public class IngestionPersistenceService {
     private final com.examradar.backend.notification.NotificationDispatcherService notificationDispatcherService;
     private final com.examradar.backend.notification.DeadlineReminderScheduler deadlineReminderScheduler;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private org.springframework.cache.CacheManager cacheManager;
+
     public IngestionPersistenceService(
             SourceRepository sourceRepository,
             SourceFetchRunRepository fetchRunRepository,
@@ -243,6 +246,15 @@ public class IngestionPersistenceService {
                 source, 1, 1, 0, result.responseTimeMs(), 0
         );
         healthSnapshotRepository.save(snapshot);
+
+        if ((newNoticesCount > 0 || revisedNoticesCount > 0) && cacheManager != null) {
+            org.springframework.cache.Cache cache = cacheManager.getCache(com.examradar.backend.config.CacheConfig.CACHE_NOTICES);
+            if (cache != null) {
+                cache.clear();
+                log.info("Cleared notices cache after persisting {} new and {} revised notices",
+                        newNoticesCount, revisedNoticesCount);
+            }
+        }
 
         log.info("Ingestion completed for [{}]: {} new notices, {} revised.", source.getId(), newNoticesCount, revisedNoticesCount);
         return new IngestionEngine.IngestionSummary(source.getId(), true, newNoticesCount, revisedNoticesCount, "Success");

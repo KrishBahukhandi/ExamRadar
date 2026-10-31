@@ -26,18 +26,32 @@ jobs:
 
       - name: Validate Required Secrets
         run: |
-          if [ -z "${{ secrets.SPRING_DATASOURCE_PASSWORD }}" ]; then
-            echo "::error::GitHub Secret SPRING_DATASOURCE_PASSWORD is not configured. Please add it under Repository Settings -> Secrets and variables -> Actions."
+          DB_PASS="${{ secrets.SPRING_DATASOURCE_PASSWORD || secrets.DB_PASSWORD }}"
+          if [ -z "$DB_PASS" ]; then
+            echo "::error::Neither SPRING_DATASOURCE_PASSWORD nor DB_PASSWORD secret is configured. Please add it under Repository Settings -> Secrets and variables -> Actions."
             exit 1
           fi
 
+      - name: Decode Firebase Service Account
+        if: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BASE64 != '' }}
+        run: |
+          mkdir -p /tmp/examradar
+          echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT_BASE64 }}" | base64 --decode > /tmp/examradar/firebase-service-account.json
+
       - name: Execute Source Collector
         env:
-          SPRING_DATASOURCE_URL: ${{ secrets.SPRING_DATASOURCE_URL }}
-          SPRING_DATASOURCE_USERNAME: ${{ secrets.SPRING_DATASOURCE_USERNAME }}
-          SPRING_DATASOURCE_PASSWORD: ${{ secrets.SPRING_DATASOURCE_PASSWORD }}
+          SPRING_DATASOURCE_PASSWORD: ${{ secrets.SPRING_DATASOURCE_PASSWORD || secrets.DB_PASSWORD }}
+          DB_PASSWORD: ${{ secrets.SPRING_DATASOURCE_PASSWORD || secrets.DB_PASSWORD }}
           COLLECTOR_USER_AGENT: "ExamRadarBot/1.0 (+https://examradar.in/bot; bot@examradar.in)"
-          FIREBASE_SERVICE_ACCOUNT_BASE64: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BASE64 }}
         run: |
           cd services/backend
+          if [ -n "${{ secrets.SPRING_DATASOURCE_URL }}" ]; then
+            export SPRING_DATASOURCE_URL="${{ secrets.SPRING_DATASOURCE_URL }}"
+          fi
+          if [ -n "${{ secrets.SPRING_DATASOURCE_USERNAME }}" ]; then
+            export SPRING_DATASOURCE_USERNAME="${{ secrets.SPRING_DATASOURCE_USERNAME }}"
+          fi
+          if [ -f "/tmp/examradar/firebase-service-account.json" ]; then
+            export FIREBASE_CREDENTIALS_PATH="/tmp/examradar/firebase-service-account.json"
+          fi
           mvn clean compile exec:java -Dexec.mainClass="com.examradar.backend.collector.CollectorCliRunner" -Dexec.args="--all"

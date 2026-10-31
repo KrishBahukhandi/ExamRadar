@@ -168,6 +168,15 @@
                     <parameters>true</parameters>
                 </configuration>
             </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.4.0</version>
+                <configuration>
+                    <mainClass>com.examradar.backend.collector.CollectorCliRunner</mainClass>
+                    <cleanupDaemonThreads>false</cleanupDaemonThreads>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>

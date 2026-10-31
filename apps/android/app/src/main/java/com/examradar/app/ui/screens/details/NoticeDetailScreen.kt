@@ -38,6 +38,7 @@ import com.examradar.app.data.model.NoticeVersionModel
 import com.examradar.app.util.CustomTabsHelper
 import com.examradar.app.util.DateFormatter
 import com.examradar.app.util.NoticePdfManager
+import com.examradar.app.util.CalendarSyncHelper
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -144,6 +145,7 @@ fun NoticeDetailScreen(
     viewModel: NoticeDetailViewModel,
     onBackClick: () -> Unit,
     onOpenChecklist: (String) -> Unit,
+    onReadPdfClick: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -218,7 +220,9 @@ fun NoticeDetailScreen(
 
                         OutlinedButton(
                             onClick = {
-                                if (uiState.isPdfCached) {
+                                if (onReadPdfClick != null) {
+                                    onReadPdfClick(notice.id)
+                                } else if (uiState.isPdfCached) {
                                     viewModel.openPdf(context)
                                 } else {
                                     CustomTabsHelper.openOfficialUrl(context, notice.officialNoticeUrl)
@@ -230,7 +234,7 @@ fun NoticeDetailScreen(
                             Icon(imageVector = Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = if (uiState.isPdfCached) "Read PDF" else "Official PDF",
+                                text = "Read PDF",
                                 fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -451,7 +455,19 @@ fun NoticeDetailScreen(
                         Spacer(modifier = Modifier.height(8.dp))
 
                         notice.importantDates.forEach { impDate ->
-                            ImportantDateRow(importantDate = impDate)
+                            ImportantDateRow(
+                                importantDate = impDate,
+                                onSyncClick = {
+                                    CalendarSyncHelper.syncEventToCalendar(
+                                        context = context,
+                                        title = "${notice.organization}: ${notice.title}",
+                                        description = "Event: ${impDate.dateType}\nOfficial Portal: ${notice.officialNoticeUrl}\nTracked via ExamRadar India",
+                                        location = notice.organization,
+                                        date = impDate.eventDate,
+                                        dateType = impDate.dateType
+                                    )
+                                }
+                            )
                             Spacer(modifier = Modifier.height(6.dp))
                         }
 
@@ -507,7 +523,13 @@ fun NoticeDetailScreen(
                             cachedSize = uiState.pdfSize,
                             isDownloading = uiState.isPdfDownloading,
                             onDownloadClick = { viewModel.downloadPdf(context) },
-                            onOpenClick = { viewModel.openPdf(context) },
+                            onOpenClick = {
+                                if (onReadPdfClick != null) {
+                                    onReadPdfClick(notice.id)
+                                } else {
+                                    viewModel.openPdf(context)
+                                }
+                            },
                             onShareClick = { viewModel.sharePdf(context) }
                         )
 
@@ -546,7 +568,10 @@ fun NoticeDetailScreen(
 }
 
 @Composable
-fun ImportantDateRow(importantDate: ImportantDateModel) {
+fun ImportantDateRow(
+    importantDate: ImportantDateModel,
+    onSyncClick: (() -> Unit)? = null
+) {
     val dateLabel = when (importantDate.dateType) {
         DateType.APPLICATION_START -> "Online Registration Opens"
         DateType.APPLICATION_DEADLINE -> "Application & Fee Deadline"
@@ -559,12 +584,12 @@ fun ImportantDateRow(importantDate: ImportantDateModel) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(6.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
             .padding(horizontal = 12.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = dateLabel,
                 style = MaterialTheme.typography.bodyMedium,
@@ -579,12 +604,31 @@ fun ImportantDateRow(importantDate: ImportantDateModel) {
             }
         }
 
-        Text(
-            text = DateFormatter.format(importantDate.eventDate),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = if (importantDate.dateType == DateType.APPLICATION_DEADLINE) DeadlineUrgent else MaterialTheme.colorScheme.primary
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = DateFormatter.format(importantDate.eventDate),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = if (importantDate.dateType == DateType.APPLICATION_DEADLINE) DeadlineUrgent else MaterialTheme.colorScheme.primary
+            )
+
+            if (onSyncClick != null) {
+                IconButton(
+                    onClick = onSyncClick,
+                    modifier = Modifier.size(34.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.EventAvailable,
+                        contentDescription = "Add to Calendar",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
     }
 }
 

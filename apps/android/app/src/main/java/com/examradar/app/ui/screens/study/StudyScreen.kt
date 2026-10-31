@@ -35,6 +35,7 @@ fun StudyScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     Scaffold(
         topBar = {
@@ -132,7 +133,7 @@ fun StudyScreen(
                                 )
                             }
                             Spacer(modifier = Modifier.width(14.dp))
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = "${uiState.daysRemaining} Days Remaining",
                                     style = MaterialTheme.typography.titleMedium,
@@ -144,6 +145,25 @@ fun StudyScreen(
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
+                            }
+                            if (uiState.nextExamDate != null) {
+                                IconButton(
+                                    onClick = {
+                                        com.examradar.app.util.CalendarSyncHelper.syncEventToCalendar(
+                                            context = context,
+                                            title = "${uiState.selectedExam?.examCode ?: "Exam"}: Scheduled Examination",
+                                            description = "Scheduled Exam Date for ${uiState.selectedExam?.examName ?: ""}\nTracked via ExamRadar India",
+                                            location = uiState.selectedExam?.organization,
+                                            date = uiState.nextExamDate!!
+                                        )
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.EventAvailable,
+                                        contentDescription = "Add Exam to Calendar",
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                }
                             }
                         }
                     }

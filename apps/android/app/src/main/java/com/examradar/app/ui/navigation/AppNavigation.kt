@@ -261,7 +261,26 @@ fun AppNavigation(
                     onBackClick = { navController.popBackStack() },
                     onOpenChecklist = { examId ->
                         navController.navigate(Screen.Checklist.createRoute(examId))
+                    },
+                    onReadPdfClick = { id ->
+                        navController.navigate(Screen.PdfViewer.createRoute(id))
                     }
+                )
+            }
+
+            // Fast In-App PDF Circular Viewer
+            composable(
+                route = Screen.PdfViewer.route,
+                arguments = listOf(navArgument("noticeId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val noticeId = backStackEntry.arguments?.getString("noticeId") ?: ""
+                val pdfViewModel: com.examradar.app.ui.screens.pdf.PdfViewerViewModel = viewModel(
+                    key = "pdf_$noticeId",
+                    factory = viewModelFactory { com.examradar.app.ui.screens.pdf.PdfViewerViewModel(repository, noticeId) }
+                )
+                com.examradar.app.ui.screens.pdf.PdfViewerScreen(
+                    viewModel = pdfViewModel,
+                    onBackClick = { navController.popBackStack() }
                 )
             }
 

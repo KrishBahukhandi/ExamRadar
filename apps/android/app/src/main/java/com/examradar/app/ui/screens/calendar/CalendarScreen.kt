@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -264,6 +265,37 @@ fun CalendarEventCard(
                     text = event.organization,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Sync to Phone Calendar Button
+            val context = androidx.compose.ui.platform.LocalContext.current
+            IconButton(
+                onClick = {
+                    val typeLabel = when (event.dateType) {
+                        DateType.APPLICATION_START -> "Registration Opens"
+                        DateType.APPLICATION_DEADLINE -> "Application Deadline"
+                        DateType.CORRECTION_WINDOW -> "Correction Window"
+                        DateType.EXAM_DATE -> "Exam Date"
+                        DateType.ADMIT_CARD_RELEASE -> "Admit Card"
+                        DateType.RESULT_DATE -> "Result Release"
+                    }
+                    com.examradar.app.util.CalendarSyncHelper.syncEventToCalendar(
+                        context = context,
+                        title = "${event.organization}: ${event.examName} - $typeLabel",
+                        description = "Tracked via ExamRadar India Calendar.\nDate: ${event.eventDate}\nOfficial Notice: ${event.officialNoticeUrl}",
+                        location = event.organization,
+                        date = event.eventDate,
+                        dateType = event.dateType
+                    )
+                },
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.EventAvailable,
+                    contentDescription = "Sync to Device Calendar",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(22.dp)
                 )
             }
         }

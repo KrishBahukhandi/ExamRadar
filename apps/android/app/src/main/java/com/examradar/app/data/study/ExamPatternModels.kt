@@ -224,3 +224,4 @@ object ExamPatternRepository {
 
     fun getAllExamIds(): List<String> = guides.keys.toList()
 }
+

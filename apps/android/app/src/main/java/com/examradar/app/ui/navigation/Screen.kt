@@ -23,4 +23,12 @@ sealed class Screen(val route: String) {
     object Account : Screen("account")
     object PrivacyPolicy : Screen("privacy")
     object Auth : Screen("auth")
+    object Vault : Screen("vault")
+    object LocalPdfViewer : Screen("pdf_file?path={path}&title={title}") {
+        fun createRoute(path: String, title: String): String {
+            val encodedPath = java.net.URLEncoder.encode(path, "UTF-8")
+            val encodedTitle = java.net.URLEncoder.encode(title, "UTF-8")
+            return "pdf_file?path=$encodedPath&title=$encodedTitle"
+        }
+    }
 }

@@ -16,9 +16,10 @@ import androidx.room.TypeConverters
         CategoryEntity::class,
         ExamEntity::class,
         NoticeEntity::class,
-        SyllabusTopicEntity::class
+        SyllabusTopicEntity::class,
+        ApplicationVaultEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -28,6 +29,7 @@ abstract class ExamRadarDatabase : RoomDatabase() {
     abstract fun examDao(): ExamDao
     abstract fun noticeDao(): NoticeDao
     abstract fun syllabusDao(): SyllabusDao
+    abstract fun applicationVaultDao(): ApplicationVaultDao
 
     companion object {
         @Volatile

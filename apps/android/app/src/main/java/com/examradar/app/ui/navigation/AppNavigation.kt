@@ -42,6 +42,8 @@ import com.examradar.app.ui.screens.auth.AuthScreen
 import com.examradar.app.ui.screens.auth.AuthViewModel
 import com.examradar.app.ui.screens.onboarding.OnboardingScreen
 import com.examradar.app.ui.screens.onboarding.OnboardingViewModel
+import com.examradar.app.ui.screens.vault.VaultScreen
+import com.examradar.app.ui.screens.vault.VaultViewModel
 
 @Suppress("UNCHECKED_CAST")
 inline fun <reified VM : ViewModel> viewModelFactory(crossinline creator: () -> VM): ViewModelProvider.Factory =
@@ -201,6 +203,9 @@ fun AppNavigation(
                             launchSingleTop = true
                             restoreState = true
                         }
+                    },
+                    onVaultClick = {
+                        navController.navigate(Screen.Vault.route)
                     }
                 )
             }
@@ -270,6 +275,9 @@ fun AppNavigation(
                     },
                     onReadPdfClick = { id ->
                         navController.navigate(Screen.PdfViewer.createRoute(id))
+                    },
+                    onOpenVault = {
+                        navController.navigate(Screen.Vault.route)
                     }
                 )
             }
@@ -348,11 +356,77 @@ fun AppNavigation(
                     onNavigateToAuth = {
                         navController.navigate(Screen.Auth.route)
                     },
+                    onNavigateToVault = {
+                        navController.navigate(Screen.Vault.route)
+                    },
                     onResetCompleted = {
                         navController.navigate(Screen.Onboarding.route) {
                             popUpTo(0) { inclusive = true }
                         }
                     }
+                )
+            }
+
+            // Document Locker & Application Vault
+            composable(
+                route = Screen.Vault.route,
+                deepLinks = listOf(
+                    androidx.navigation.navDeepLink { uriPattern = "https://app.examradar.in/vault" },
+                    androidx.navigation.navDeepLink { uriPattern = "examradar://vault" }
+                )
+            ) {
+                val vaultViewModel: VaultViewModel = viewModel(
+                    factory = VaultViewModel.provideFactory(repository)
+                )
+                VaultScreen(
+                    viewModel = vaultViewModel,
+                    onBackClick = { navController.popBackStack() },
+                    onOpenPdf = { filePath, title ->
+                        navController.navigate(Screen.LocalPdfViewer.createRoute(filePath, title))
+                    }
+                )
+            }
+
+            // Local In-App PDF Document Viewer (Admit Cards / Forms)
+            composable(
+                route = Screen.LocalPdfViewer.route,
+                arguments = listOf(
+                    navArgument("path") {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    },
+                    navArgument("title") {
+                        type = NavType.StringType
+                        defaultValue = "Official Document"
+                    }
+                )
+            ) { backStackEntry ->
+                val rawPath = backStackEntry.arguments?.getString("path") ?: ""
+                val rawTitle = backStackEntry.arguments?.getString("title") ?: "Official Document"
+                val decodedPath = try {
+                    java.net.URLDecoder.decode(rawPath, "UTF-8")
+                } catch (e: Exception) {
+                    rawPath
+                }
+                val decodedTitle = try {
+                    java.net.URLDecoder.decode(rawTitle, "UTF-8")
+                } catch (e: Exception) {
+                    rawTitle
+                }
+                val pdfViewModel: com.examradar.app.ui.screens.pdf.PdfViewerViewModel = viewModel(
+                    key = "local_pdf_$decodedPath",
+                    factory = viewModelFactory {
+                        com.examradar.app.ui.screens.pdf.PdfViewerViewModel(
+                            repository = repository,
+                            noticeId = "",
+                            customFilePath = decodedPath,
+                            customTitle = decodedTitle
+                        )
+                    }
+                )
+                com.examradar.app.ui.screens.pdf.PdfViewerScreen(
+                    viewModel = pdfViewModel,
+                    onBackClick = { navController.popBackStack() }
                 )
             }
 

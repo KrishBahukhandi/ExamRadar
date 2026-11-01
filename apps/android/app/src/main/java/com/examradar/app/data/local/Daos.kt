@@ -1,6 +1,7 @@
 package com.examradar.app.data.local
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
@@ -92,4 +93,28 @@ interface SyllabusDao {
 
     @Query("SELECT COUNT(*) FROM syllabus_topics")
     suspend fun getGlobalTopicCount(): Int
+}
+
+@Dao
+interface ApplicationVaultDao {
+    @Query("SELECT * FROM application_vault_entries ORDER BY createdAt DESC")
+    fun getAllEntries(): Flow<List<ApplicationVaultEntity>>
+
+    @Query("SELECT * FROM application_vault_entries WHERE id = :id")
+    fun getEntryById(id: String): Flow<ApplicationVaultEntity?>
+
+    @Query("SELECT * FROM application_vault_entries WHERE examId = :examId LIMIT 1")
+    fun getEntryByExamId(examId: String): Flow<ApplicationVaultEntity?>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrUpdate(entry: ApplicationVaultEntity)
+
+    @Delete
+    suspend fun delete(entry: ApplicationVaultEntity)
+
+    @Query("DELETE FROM application_vault_entries WHERE id = :id")
+    suspend fun deleteById(id: String)
+
+    @Query("SELECT COUNT(*) FROM application_vault_entries")
+    fun getEntryCount(): Flow<Int>
 }

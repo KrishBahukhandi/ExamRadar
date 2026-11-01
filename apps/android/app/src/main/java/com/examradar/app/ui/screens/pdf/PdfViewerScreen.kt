@@ -66,14 +66,16 @@ fun PdfViewerScreen(
                 title = {
                     Column {
                         Text(
-                            text = uiState.notice?.title ?: "Official Document",
+                            text = uiState.customTitle ?: uiState.notice?.title ?: "Official Document",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = if (uiState.pageCount > 0) {
+                            text = if (uiState.customTitle != null) {
+                                "Offline Locker • Page ${uiState.currentPage} of ${uiState.pageCount.coerceAtLeast(1)}"
+                            } else if (uiState.pageCount > 0) {
                                 "${uiState.notice?.organization ?: "Official Notice"} • Page ${uiState.currentPage} of ${uiState.pageCount}"
                             } else {
                                 uiState.notice?.organization ?: "Loading document..."

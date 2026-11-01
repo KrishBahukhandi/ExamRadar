@@ -105,3 +105,31 @@ data class SyllabusTopicEntity(
     val completedAt: Long? = null,
     val sortOrder: Int = 0
 )
+
+@Entity(
+    tableName = "application_vault_entries",
+    indices = [
+        Index(value = ["examId"]),
+        Index(value = ["createdAt"])
+    ]
+)
+data class ApplicationVaultEntity(
+    @PrimaryKey val id: String,
+    val examId: String? = null,
+    val examName: String,
+    val applicationNumber: String,
+    val rollNumber: String? = null,
+    val examCenterName: String? = null,
+    val examCenterCity: String? = null,
+    val examDate: LocalDate? = null,
+    val reportingTime: String? = null,
+    val shiftDetails: String? = null,
+    val admitCardFileName: String? = null,
+    val admitCardFilePath: String? = null,
+    val applicationFormFileName: String? = null,
+    val applicationFormFilePath: String? = null,
+    val idProofType: String? = null,
+    val notes: String? = null,
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis()
+)

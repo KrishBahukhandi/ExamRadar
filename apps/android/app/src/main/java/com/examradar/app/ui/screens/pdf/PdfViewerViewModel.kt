@@ -25,6 +25,7 @@ data class PdfViewerUiState(
     val isLoading: Boolean = true,
     val isDownloading: Boolean = false,
     val notice: NoticeModel? = null,
+    val customTitle: String? = null,
     val pageCount: Int = 0,
     val currentPage: Int = 1,
     val error: String? = null,
@@ -33,10 +34,12 @@ data class PdfViewerUiState(
 
 class PdfViewerViewModel(
     private val repository: ExamRadarRepository,
-    private val noticeId: String
+    private val noticeId: String,
+    private val customFilePath: String? = null,
+    private val customTitle: String? = null
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(PdfViewerUiState())
+    private val _uiState = MutableStateFlow(PdfViewerUiState(customTitle = customTitle))
     val uiState = _uiState.asStateFlow()
 
     private var pdfRenderer: PdfRenderer? = null
@@ -46,6 +49,20 @@ class PdfViewerViewModel(
     fun loadPdf(context: Context) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
+
+            // If a direct local file path is provided (e.g. from Document Locker)
+            if (!customFilePath.isNullOrBlank()) {
+                val directFile = File(customFilePath)
+                if (directFile.exists() && directFile.length() > 0) {
+                    initRenderer(directFile)
+                    return@launch
+                } else {
+                    _uiState.update { it.copy(isLoading = false, error = "Local document not found") }
+                    return@launch
+                }
+            }
+
+            // Otherwise, load from notice repository & cache
             val notice = repository.getNoticeById(noticeId).firstOrNull()
             if (notice == null) {
                 _uiState.update { it.copy(isLoading = false, error = "Notice not found") }

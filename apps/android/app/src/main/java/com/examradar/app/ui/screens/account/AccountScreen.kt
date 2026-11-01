@@ -65,6 +65,7 @@ fun AccountScreen(
     onNavigateToNotifications: () -> Unit,
     onNavigateToPrivacy: () -> Unit,
     onNavigateToAuth: () -> Unit,
+    onNavigateToVault: () -> Unit,
     onResetCompleted: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -313,6 +314,13 @@ fun AccountScreen(
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(8.dp))
+
+            AccountNavRow(
+                icon = Icons.Default.FolderSpecial,
+                title = "Application Locker & Document Vault",
+                subtitle = "Offline admit cards, roll numbers & center details",
+                onClick = onNavigateToVault
+            )
 
             AccountNavRow(
                 icon = Icons.Default.Notifications,

@@ -87,11 +87,19 @@ interface StudyRepository {
     suspend fun ensureSyllabusSeeded()
 }
 
+interface VaultRepository {
+    fun getVaultEntries(): Flow<List<ApplicationVaultEntity>>
+    fun getVaultEntryById(id: String): Flow<ApplicationVaultEntity?>
+    fun getVaultEntryByExamId(examId: String): Flow<ApplicationVaultEntity?>
+    suspend fun saveVaultEntry(entry: ApplicationVaultEntity)
+    suspend fun deleteVaultEntry(id: String)
+}
+
 /**
  * Composite repository contract combining domain sub-repositories.
  * Preserves binary compatibility with existing ViewModel factories.
  */
-interface ExamRadarRepository : NoticeRepository, ExamCatalogRepository, UserPreferencesDomainRepository, ChecklistRepository, AuthRepository, NotificationInboxRepository, StudyRepository
+interface ExamRadarRepository : NoticeRepository, ExamCatalogRepository, UserPreferencesDomainRepository, ChecklistRepository, AuthRepository, NotificationInboxRepository, StudyRepository, VaultRepository
 
 class ExamRadarRepositoryImpl(
     private val preferencesRepository: UserPreferencesRepository,
@@ -679,5 +687,22 @@ class ExamRadarRepositoryImpl(
         } catch (e: Exception) {
             Log.w("ExamRadarRepo", "Error seeding syllabus topics: ${e.message}")
         }
+    }
+
+    override fun getVaultEntries(): Flow<List<ApplicationVaultEntity>> =
+        database?.applicationVaultDao()?.getAllEntries() ?: kotlinx.coroutines.flow.flowOf(emptyList())
+
+    override fun getVaultEntryById(id: String): Flow<ApplicationVaultEntity?> =
+        database?.applicationVaultDao()?.getEntryById(id) ?: kotlinx.coroutines.flow.flowOf(null)
+
+    override fun getVaultEntryByExamId(examId: String): Flow<ApplicationVaultEntity?> =
+        database?.applicationVaultDao()?.getEntryByExamId(examId) ?: kotlinx.coroutines.flow.flowOf(null)
+
+    override suspend fun saveVaultEntry(entry: ApplicationVaultEntity) {
+        database?.applicationVaultDao()?.insertOrUpdate(entry)
+    }
+
+    override suspend fun deleteVaultEntry(id: String) {
+        database?.applicationVaultDao()?.deleteById(id)
     }
 }

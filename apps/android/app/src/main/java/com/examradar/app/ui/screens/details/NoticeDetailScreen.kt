@@ -146,6 +146,7 @@ fun NoticeDetailScreen(
     onBackClick: () -> Unit,
     onOpenChecklist: (String) -> Unit,
     onReadPdfClick: ((String) -> Unit)? = null,
+    onOpenVault: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -544,6 +545,18 @@ fun NoticeDetailScreen(
                             Icon(imageVector = Icons.Default.Checklist, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Open Application Checklist")
+                        }
+
+                        if (onOpenVault != null) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            OutlinedButton(
+                                onClick = onOpenVault,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(imageVector = Icons.Default.FolderSpecial, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Open Document Locker & Vault")
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(14.dp))

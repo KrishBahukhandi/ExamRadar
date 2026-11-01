@@ -25,18 +25,14 @@ import java.util.Optional;
  * Assistant Professor, Teacher Recruitment Exam (TRE), and departmental posts.
  */
 @Component
-public class BpscSourceAdapter implements SourceAdapter {
-
-    private static final Logger log = LoggerFactory.getLogger(BpscSourceAdapter.class);
+public class BpscSourceAdapter extends AbstractHtmlSourceAdapter {
 
     public static final String SOURCE_ID = "src-bpsc";
     private static final String BPSC_NOTICES_URL = "https://www.bpsc.bih.nic.in";
     private static final String BPSC_BASE_URL = "https://www.bpsc.bih.nic.in";
 
-    private final PoliteHttpClient httpClient;
-
     public BpscSourceAdapter(PoliteHttpClient httpClient) {
-        this.httpClient = httpClient;
+        super(httpClient);
     }
 
     @Override
@@ -45,40 +41,17 @@ public class BpscSourceAdapter implements SourceAdapter {
     }
 
     @Override
-    public ExtractionResult fetchAndExtract(Source source, String lastContentHash) {
-        long startTime = System.currentTimeMillis();
-        try {
-            PoliteHttpClient.HttpResponseData response = httpClient.get(BPSC_NOTICES_URL);
-            long latency = response.responseTimeMs();
-
-            if (response.statusCode() != 200) {
-                return ExtractionResult.failure(SOURCE_ID, response.statusCode(), latency,
-                        "HTTP error from BPSC portal: " + response.statusCode());
-            }
-
-            if (lastContentHash != null && lastContentHash.equals(response.contentHash())) {
-                return ExtractionResult.noChange(SOURCE_ID, response.contentHash(), response.statusCode(), latency);
-            }
-
-            Document doc = Jsoup.parse(response.body());
-            List<ExtractedNoticeDto> notices = extractNoticesFromHtml(doc);
-
-            if (notices.isEmpty()) {
-                log.warn("BPSC HTML parsed but 0 notices extracted. Portal layout may have changed.");
-            }
-
-            return ExtractionResult.success(SOURCE_ID, true, response.contentHash(),
-                    response.statusCode(), latency, notices);
-
-        } catch (Exception e) {
-            long latency = System.currentTimeMillis() - startTime;
-            log.error("Exception fetching BPSC notices: {}", e.getMessage(), e);
-            return ExtractionResult.failure(SOURCE_ID, 0, latency,
-                    "Exception during BPSC fetch: " + e.getMessage());
-        }
+    protected String getTargetUrl() {
+        return BPSC_NOTICES_URL;
     }
 
-    private List<ExtractedNoticeDto> extractNoticesFromHtml(Document doc) {
+    @Override
+    protected String getPortalName() {
+        return "BPSC";
+    }
+
+    @Override
+    protected List<ExtractedNoticeDto> extractNoticesFromHtml(Document doc) {
         List<ExtractedNoticeDto> notices = new ArrayList<>();
 
         Elements items = doc.select("table tr a, .notification-list a, .whats-new a, ul li a");

@@ -29,9 +29,7 @@ import com.examradar.app.ui.components.EmptyStateView
 import com.examradar.app.ui.components.LoadingStateView
 import com.examradar.app.ui.theme.*
 import com.examradar.app.util.DateFormatter
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
 
@@ -45,23 +43,25 @@ class CalendarViewModel(
     private val repository: ExamRadarRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(CalendarUiState())
-    val uiState = _uiState.asStateFlow()
+    private val _isCalendarView = MutableStateFlow(false)
 
-    init {
-        loadEvents()
-    }
-
-    private fun loadEvents() {
-        viewModelScope.launch {
-            repository.getCalendarEvents().collectLatest { events ->
-                _uiState.value = _uiState.value.copy(events = events, isLoading = false)
-            }
-        }
-    }
+    val uiState: StateFlow<CalendarUiState> = combine(
+        repository.getCalendarEvents(),
+        _isCalendarView
+    ) { events, isCalView ->
+        CalendarUiState(
+            isLoading = false,
+            events = events,
+            isCalendarView = isCalView
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = CalendarUiState(isLoading = true)
+    )
 
     fun toggleViewMode() {
-        _uiState.value = _uiState.value.copy(isCalendarView = !_uiState.value.isCalendarView)
+        _isCalendarView.value = !_isCalendarView.value
     }
 }
 

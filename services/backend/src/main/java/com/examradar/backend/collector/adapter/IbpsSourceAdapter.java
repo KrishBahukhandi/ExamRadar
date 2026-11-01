@@ -18,16 +18,15 @@ import java.util.List;
 import java.util.Optional;
 
 @Component
-public class IbpsSourceAdapter implements SourceAdapter {
+public class IbpsSourceAdapter extends BaseSourceAdapter {
 
     public static final String SOURCE_ID = "src-ibps";
     private static final String API_URL = "https://www.ibps.in/index.php/wp-json/wp/v2/pages?search=notification&per_page=10";
 
-    private final PoliteHttpClient httpClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public IbpsSourceAdapter(PoliteHttpClient httpClient) {
-        this.httpClient = httpClient;
+        super(httpClient);
     }
 
     @Override
@@ -36,52 +35,38 @@ public class IbpsSourceAdapter implements SourceAdapter {
     }
 
     @Override
-    public ExtractionResult fetchAndExtract(Source source, String lastContentHash) {
-        long startTime = System.currentTimeMillis();
-        try {
-            PoliteHttpClient.HttpResponseData response = httpClient.get(API_URL);
-            long latency = response.responseTimeMs();
+    protected String getTargetUrl() {
+        return API_URL;
+    }
 
-            if (response.statusCode() != 200) {
-                return ExtractionResult.failure(SOURCE_ID, response.statusCode(), latency,
-                        "HTTP error from IBPS portal: " + response.statusCode());
-            }
+    @Override
+    protected String getPortalName() {
+        return "IBPS";
+    }
 
-            // Change detection using SHA-256
-            if (lastContentHash != null && lastContentHash.equals(response.contentHash())) {
-                return ExtractionResult.noChange(SOURCE_ID, response.contentHash(), response.statusCode(), latency);
-            }
+    @Override
+    protected List<ExtractedNoticeDto> parseResponseBody(String body) throws Exception {
+        int jsonStartIndex = body.indexOf('[');
+        int jsonEndIndex = body.lastIndexOf(']');
 
-            String body = response.body();
-            int jsonStartIndex = body.indexOf('[');
-            int jsonEndIndex = body.lastIndexOf(']');
+        if (jsonStartIndex == -1 || jsonEndIndex == -1 || jsonEndIndex <= jsonStartIndex) {
+            throw new IllegalArgumentException("Invalid JSON format received from IBPS WP API");
+        }
 
-            if (jsonStartIndex == -1 || jsonEndIndex == -1 || jsonEndIndex <= jsonStartIndex) {
-                return ExtractionResult.failure(SOURCE_ID, response.statusCode(), latency,
-                        "Invalid JSON format received from IBPS WP API");
-            }
+        String cleanJson = body.substring(jsonStartIndex, jsonEndIndex + 1);
+        JsonNode rootNode = objectMapper.readTree(cleanJson);
 
-            String cleanJson = body.substring(jsonStartIndex, jsonEndIndex + 1);
-            JsonNode rootNode = objectMapper.readTree(cleanJson);
+        List<ExtractedNoticeDto> notices = new ArrayList<>();
 
-            List<ExtractedNoticeDto> notices = new ArrayList<>();
-
-            if (rootNode.isArray()) {
-                for (JsonNode item : rootNode) {
-                    ExtractedNoticeDto noticeDto = parseNoticeItem(item);
-                    if (noticeDto != null) {
-                        notices.add(noticeDto);
-                    }
+        if (rootNode.isArray()) {
+            for (JsonNode item : rootNode) {
+                ExtractedNoticeDto noticeDto = parseNoticeItem(item);
+                if (noticeDto != null) {
+                    notices.add(noticeDto);
                 }
             }
-
-            return ExtractionResult.success(SOURCE_ID, true, response.contentHash(),
-                    response.statusCode(), latency, notices);
-
-        } catch (Exception e) {
-            long latency = System.currentTimeMillis() - startTime;
-            return ExtractionResult.failure(SOURCE_ID, 0, latency, "Exception during IBPS fetch: " + e.getMessage());
         }
+        return notices;
     }
 
     public ExtractedNoticeDto parseNoticeItem(JsonNode item) {

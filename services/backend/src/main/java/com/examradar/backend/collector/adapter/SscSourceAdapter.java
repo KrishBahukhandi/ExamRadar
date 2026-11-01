@@ -23,7 +23,7 @@ import java.util.Optional;
  * circulars, admit-card releases, answer keys, results, and PDF attachments.
  */
 @Component
-public class SscSourceAdapter implements SourceAdapter {
+public class SscSourceAdapter extends BaseSourceAdapter {
 
     public static final String SOURCE_ID = "src-ssc";
     private static final String API_URL = "https://ssc.gov.in/api/general-website/portal/notice-boards?" +
@@ -31,11 +31,10 @@ public class SscSourceAdapter implements SourceAdapter {
             "&attributes=id,headline,examId,contentType,redirectUrl,startDate,endDate,language,createdAt";
     private static final String ATTACHMENT_BASE_URL = "https://ssc.gov.in/api/attachment/";
 
-    private final PoliteHttpClient httpClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public SscSourceAdapter(PoliteHttpClient httpClient) {
-        this.httpClient = httpClient;
+        super(httpClient);
     }
 
     @Override
@@ -44,46 +43,32 @@ public class SscSourceAdapter implements SourceAdapter {
     }
 
     @Override
-    public ExtractionResult fetchAndExtract(Source source, String lastContentHash) {
-        long startTime = System.currentTimeMillis();
-        try {
-            PoliteHttpClient.HttpResponseData response = httpClient.get(API_URL);
-            long latency = response.responseTimeMs();
+    protected String getTargetUrl() {
+        return API_URL;
+    }
 
-            if (response.statusCode() != 200) {
-                return ExtractionResult.failure(SOURCE_ID, response.statusCode(), latency,
-                        "HTTP " + response.statusCode() + " from SSC official portal");
-            }
+    @Override
+    protected String getPortalName() {
+        return "SSC";
+    }
 
-            // Change detection via content SHA-256
-            if (lastContentHash != null && lastContentHash.equals(response.contentHash())) {
-                return ExtractionResult.noChange(SOURCE_ID, response.contentHash(), response.statusCode(), latency);
-            }
+    @Override
+    protected List<ExtractedNoticeDto> parseResponseBody(String body) throws Exception {
+        JsonNode rootNode = objectMapper.readTree(body);
+        JsonNode dataNode = rootNode.path("data");
 
-            JsonNode rootNode = objectMapper.readTree(response.body());
-            JsonNode dataNode = rootNode.path("data");
-
-            if (!dataNode.isArray()) {
-                return ExtractionResult.failure(SOURCE_ID, response.statusCode(), latency,
-                        "Unexpected SSC JSON payload: missing data array");
-            }
-
-            List<ExtractedNoticeDto> notices = new ArrayList<>();
-            for (JsonNode item : dataNode) {
-                ExtractedNoticeDto noticeDto = parseNoticeItem(item);
-                if (noticeDto != null) {
-                    notices.add(noticeDto);
-                }
-            }
-
-            return ExtractionResult.success(SOURCE_ID, true, response.contentHash(),
-                    response.statusCode(), latency, notices);
-
-        } catch (Exception e) {
-            long latency = System.currentTimeMillis() - startTime;
-            return ExtractionResult.failure(SOURCE_ID, 0, latency,
-                    "Exception during SSC fetch: " + e.getMessage());
+        if (!dataNode.isArray()) {
+            throw new IllegalArgumentException("Unexpected SSC JSON payload: missing data array");
         }
+
+        List<ExtractedNoticeDto> notices = new ArrayList<>();
+        for (JsonNode item : dataNode) {
+            ExtractedNoticeDto noticeDto = parseNoticeItem(item);
+            if (noticeDto != null) {
+                notices.add(noticeDto);
+            }
+        }
+        return notices;
     }
 
     public ExtractedNoticeDto parseNoticeItem(JsonNode item) {

@@ -24,18 +24,14 @@ import java.util.Optional;
  * Connects to nta.ac.in and parses public notices for JEE Main, NEET UG, CUET, and UGC NET.
  */
 @Component
-public class NtaSourceAdapter implements SourceAdapter {
-
-    private static final Logger log = LoggerFactory.getLogger(NtaSourceAdapter.class);
+public class NtaSourceAdapter extends AbstractHtmlSourceAdapter {
 
     public static final String SOURCE_ID = "src-nta";
     private static final String NTA_NOTICES_URL = "https://nta.ac.in/Notice";
     private static final String NTA_BASE_URL = "https://nta.ac.in";
 
-    private final PoliteHttpClient httpClient;
-
     public NtaSourceAdapter(PoliteHttpClient httpClient) {
-        this.httpClient = httpClient;
+        super(httpClient);
     }
 
     @Override
@@ -44,40 +40,17 @@ public class NtaSourceAdapter implements SourceAdapter {
     }
 
     @Override
-    public ExtractionResult fetchAndExtract(Source source, String lastContentHash) {
-        long startTime = System.currentTimeMillis();
-        try {
-            PoliteHttpClient.HttpResponseData response = httpClient.get(NTA_NOTICES_URL);
-            long latency = response.responseTimeMs();
-
-            if (response.statusCode() != 200) {
-                return ExtractionResult.failure(SOURCE_ID, response.statusCode(), latency,
-                        "HTTP error from NTA portal: " + response.statusCode());
-            }
-
-            if (lastContentHash != null && lastContentHash.equals(response.contentHash())) {
-                return ExtractionResult.noChange(SOURCE_ID, response.contentHash(), response.statusCode(), latency);
-            }
-
-            Document doc = Jsoup.parse(response.body());
-            List<ExtractedNoticeDto> notices = extractNoticesFromHtml(doc);
-
-            if (notices.isEmpty()) {
-                log.warn("NTA HTML parsed but 0 notices extracted. Portal layout may have changed.");
-            }
-
-            return ExtractionResult.success(SOURCE_ID, true, response.contentHash(),
-                    response.statusCode(), latency, notices);
-
-        } catch (Exception e) {
-            long latency = System.currentTimeMillis() - startTime;
-            log.error("Exception fetching NTA notices: {}", e.getMessage(), e);
-            return ExtractionResult.failure(SOURCE_ID, 0, latency,
-                    "Exception during NTA fetch: " + e.getMessage());
-        }
+    protected String getTargetUrl() {
+        return NTA_NOTICES_URL;
     }
 
-    private List<ExtractedNoticeDto> extractNoticesFromHtml(Document doc) {
+    @Override
+    protected String getPortalName() {
+        return "NTA";
+    }
+
+    @Override
+    protected List<ExtractedNoticeDto> extractNoticesFromHtml(Document doc) {
         List<ExtractedNoticeDto> notices = new ArrayList<>();
 
         // NTA table rows on /Notice

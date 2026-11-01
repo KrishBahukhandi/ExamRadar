@@ -25,18 +25,14 @@ import java.util.Optional;
  * Subordinate Services (PCS), Review Officer (RO/ARO), and State Engineering exams.
  */
 @Component
-public class UppscSourceAdapter implements SourceAdapter {
-
-    private static final Logger log = LoggerFactory.getLogger(UppscSourceAdapter.class);
+public class UppscSourceAdapter extends AbstractHtmlSourceAdapter {
 
     public static final String SOURCE_ID = "src-uppsc";
     private static final String UPPSC_NOTICES_URL = "https://uppsc.up.nic.in";
     private static final String UPPSC_BASE_URL = "https://uppsc.up.nic.in";
 
-    private final PoliteHttpClient httpClient;
-
     public UppscSourceAdapter(PoliteHttpClient httpClient) {
-        this.httpClient = httpClient;
+        super(httpClient);
     }
 
     @Override
@@ -45,40 +41,17 @@ public class UppscSourceAdapter implements SourceAdapter {
     }
 
     @Override
-    public ExtractionResult fetchAndExtract(Source source, String lastContentHash) {
-        long startTime = System.currentTimeMillis();
-        try {
-            PoliteHttpClient.HttpResponseData response = httpClient.get(UPPSC_NOTICES_URL);
-            long latency = response.responseTimeMs();
-
-            if (response.statusCode() != 200) {
-                return ExtractionResult.failure(SOURCE_ID, response.statusCode(), latency,
-                        "HTTP error from UPPSC portal: " + response.statusCode());
-            }
-
-            if (lastContentHash != null && lastContentHash.equals(response.contentHash())) {
-                return ExtractionResult.noChange(SOURCE_ID, response.contentHash(), response.statusCode(), latency);
-            }
-
-            Document doc = Jsoup.parse(response.body());
-            List<ExtractedNoticeDto> notices = extractNoticesFromHtml(doc);
-
-            if (notices.isEmpty()) {
-                log.warn("UPPSC HTML parsed but 0 notices extracted. Portal layout may have changed.");
-            }
-
-            return ExtractionResult.success(SOURCE_ID, true, response.contentHash(),
-                    response.statusCode(), latency, notices);
-
-        } catch (Exception e) {
-            long latency = System.currentTimeMillis() - startTime;
-            log.error("Exception fetching UPPSC notices: {}", e.getMessage(), e);
-            return ExtractionResult.failure(SOURCE_ID, 0, latency,
-                    "Exception during UPPSC fetch: " + e.getMessage());
-        }
+    protected String getTargetUrl() {
+        return UPPSC_NOTICES_URL;
     }
 
-    private List<ExtractedNoticeDto> extractNoticesFromHtml(Document doc) {
+    @Override
+    protected String getPortalName() {
+        return "UPPSC";
+    }
+
+    @Override
+    protected List<ExtractedNoticeDto> extractNoticesFromHtml(Document doc) {
         List<ExtractedNoticeDto> notices = new ArrayList<>();
 
         Elements items = doc.select(".notice-board a, .news-ticker a, table tr a, .marquee a, ul.notices li a");

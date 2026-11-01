@@ -32,9 +32,7 @@ import com.examradar.app.data.repository.ExamRadarRepository
 import com.examradar.app.ui.components.EmptyStateView
 import com.examradar.app.ui.components.LoadingStateView
 import com.examradar.app.util.CustomTabsHelper
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 data class DiscoveryUiState(
@@ -45,19 +43,38 @@ data class DiscoveryUiState(
     val exams: List<ExamModel> = emptyList()
 )
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class DiscoveryViewModel(
     private val repository: ExamRadarRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(DiscoveryUiState())
-    val uiState = _uiState.asStateFlow()
+    private val _searchQuery = MutableStateFlow("")
+    private val _selectedCategory = MutableStateFlow<String?>(null)
 
     var isRefreshing by mutableStateOf(false)
         private set
 
-    init {
-        loadData()
-    }
+    val uiState: StateFlow<DiscoveryUiState> = combine(
+        repository.getCategories(),
+        _selectedCategory,
+        _searchQuery
+    ) { categories, category, query ->
+        Triple(categories, category, query)
+    }.flatMapLatest { (categories, category, query) ->
+        repository.getExams(categoryId = category, searchQuery = query).map { exams ->
+            DiscoveryUiState(
+                isLoading = false,
+                searchQuery = query,
+                selectedCategory = category,
+                categories = categories,
+                exams = exams
+            )
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = DiscoveryUiState(isLoading = true)
+    )
 
     fun refresh() {
         viewModelScope.launch {
@@ -70,41 +87,17 @@ class DiscoveryViewModel(
         }
     }
 
-    private fun loadData() {
-        viewModelScope.launch {
-            launch {
-                repository.getCategories().collectLatest { categories ->
-                    _uiState.value = _uiState.value.copy(categories = categories)
-                }
-            }
-            refreshExams()
-        }
-    }
-
     fun onSearchQueryChange(query: String) {
-        _uiState.value = _uiState.value.copy(searchQuery = query)
-        refreshExams()
+        _searchQuery.value = query
     }
 
     fun selectCategory(categoryId: String?) {
-        _uiState.value = _uiState.value.copy(selectedCategory = categoryId)
-        refreshExams()
+        _selectedCategory.value = categoryId
     }
 
     fun toggleFollowExam(examId: String) {
         viewModelScope.launch {
             repository.toggleFollowExam(examId)
-        }
-    }
-
-    private fun refreshExams() {
-        viewModelScope.launch {
-            repository.getExams(
-                categoryId = _uiState.value.selectedCategory,
-                searchQuery = _uiState.value.searchQuery
-            ).collectLatest { exams ->
-                _uiState.value = _uiState.value.copy(exams = exams, isLoading = false)
-            }
         }
     }
 }

@@ -24,9 +24,7 @@ import androidx.lifecycle.viewModelScope
 import com.examradar.app.data.model.*
 import com.examradar.app.data.repository.ExamRadarRepository
 import com.examradar.app.ui.components.*
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 data class HomeUiState(
@@ -40,18 +38,45 @@ data class HomeUiState(
     val errorMessage: String? = null
 )
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class HomeViewModel(
     private val repository: ExamRadarRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(HomeUiState())
-    val uiState = _uiState.asStateFlow()
+    private val _selectedCategoryFilter = MutableStateFlow<String?>(null)
 
     var isRefreshing by mutableStateOf(false)
         private set
 
+    val uiState: StateFlow<HomeUiState> = combine(
+        repository.getCategories(),
+        repository.getSourceFreshness(),
+        repository.getUserPreferences(),
+        repository.getNotices(onlyApproachingDeadlines = true),
+        _selectedCategoryFilter.flatMapLatest { cat ->
+            repository.getNotices(categoryFilter = cat).map { notices -> cat to notices }
+        }
+    ) { categories, freshness, prefs, deadlines, catAndNotices ->
+        val (selectedCat, notices) = catAndNotices
+        HomeUiState(
+            isLoading = false,
+            followedExamsCount = prefs.followedExams.size,
+            approachingDeadlines = deadlines,
+            notices = notices,
+            categories = categories,
+            freshnessInfo = freshness,
+            selectedCategoryFilter = selectedCat
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = HomeUiState(isLoading = true)
+    )
+
     init {
-        loadData()
+        viewModelScope.launch {
+            repository.refreshNotices()
+        }
     }
 
     fun refresh() {
@@ -65,59 +90,8 @@ class HomeViewModel(
         }
     }
 
-    fun loadData() {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true)
-
-            launch {
-                repository.refreshNotices()
-            }
-
-            launch {
-                repository.getCategories().collectLatest { cats ->
-                    _uiState.value = _uiState.value.copy(categories = cats)
-                }
-            }
-
-            launch {
-                repository.getSourceFreshness().collectLatest { freshness ->
-                    _uiState.value = _uiState.value.copy(freshnessInfo = freshness)
-                }
-            }
-
-            launch {
-                repository.getUserPreferences().collectLatest { prefs ->
-                    _uiState.value = _uiState.value.copy(followedExamsCount = prefs.followedExams.size)
-                }
-            }
-
-            launch {
-                repository.getNotices(onlyApproachingDeadlines = true).collectLatest { deadlines ->
-                    _uiState.value = _uiState.value.copy(approachingDeadlines = deadlines)
-                }
-            }
-
-            launch {
-                repository.getNotices(categoryFilter = _uiState.value.selectedCategoryFilter).collectLatest { notices ->
-                    _uiState.value = _uiState.value.copy(
-                        notices = notices,
-                        isLoading = false
-                    )
-                }
-            }
-        }
-    }
-
     fun selectCategoryFilter(categoryId: String?) {
-        _uiState.value = _uiState.value.copy(selectedCategoryFilter = categoryId, isLoading = true)
-        viewModelScope.launch {
-            repository.getNotices(categoryFilter = categoryId).collectLatest { notices ->
-                _uiState.value = _uiState.value.copy(
-                    notices = notices,
-                    isLoading = false
-                )
-            }
-        }
+        _selectedCategoryFilter.value = categoryId
     }
 }
 

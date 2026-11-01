@@ -25,18 +25,14 @@ import java.util.Optional;
  * civil services circulars, admit cards, and application deadlines.
  */
 @Component
-public class UpscSourceAdapter implements SourceAdapter {
-
-    private static final Logger log = LoggerFactory.getLogger(UpscSourceAdapter.class);
+public class UpscSourceAdapter extends AbstractHtmlSourceAdapter {
 
     public static final String SOURCE_ID = "src-upsc";
     private static final String UPSC_WHATS_NEW_URL = "https://upsc.gov.in/whats-new";
     private static final String UPSC_BASE_URL = "https://upsc.gov.in";
 
-    private final PoliteHttpClient httpClient;
-
     public UpscSourceAdapter(PoliteHttpClient httpClient) {
-        this.httpClient = httpClient;
+        super(httpClient);
     }
 
     @Override
@@ -45,41 +41,17 @@ public class UpscSourceAdapter implements SourceAdapter {
     }
 
     @Override
-    public ExtractionResult fetchAndExtract(Source source, String lastContentHash) {
-        long startTime = System.currentTimeMillis();
-        try {
-            PoliteHttpClient.HttpResponseData response = httpClient.get(UPSC_WHATS_NEW_URL);
-            long latency = response.responseTimeMs();
-
-            if (response.statusCode() != 200) {
-                return ExtractionResult.failure(SOURCE_ID, response.statusCode(), latency,
-                        "HTTP error from UPSC portal: " + response.statusCode());
-            }
-
-            // Change detection using SHA-256
-            if (lastContentHash != null && lastContentHash.equals(response.contentHash())) {
-                return ExtractionResult.noChange(SOURCE_ID, response.contentHash(), response.statusCode(), latency);
-            }
-
-            Document doc = Jsoup.parse(response.body());
-            List<ExtractedNoticeDto> notices = extractNoticesFromHtml(doc);
-
-            if (notices.isEmpty()) {
-                log.warn("UPSC HTML parsed but 0 notices extracted. Page layout may have changed.");
-            }
-
-            return ExtractionResult.success(SOURCE_ID, true, response.contentHash(),
-                    response.statusCode(), latency, notices);
-
-        } catch (Exception e) {
-            long latency = System.currentTimeMillis() - startTime;
-            log.error("Exception fetching UPSC notices: {}", e.getMessage(), e);
-            return ExtractionResult.failure(SOURCE_ID, 0, latency,
-                    "Exception during UPSC fetch: " + e.getMessage());
-        }
+    protected String getTargetUrl() {
+        return UPSC_WHATS_NEW_URL;
     }
 
-    private List<ExtractedNoticeDto> extractNoticesFromHtml(Document doc) {
+    @Override
+    protected String getPortalName() {
+        return "UPSC";
+    }
+
+    @Override
+    protected List<ExtractedNoticeDto> extractNoticesFromHtml(Document doc) {
         List<ExtractedNoticeDto> notices = new ArrayList<>();
 
         // UPSC uses Drupal view tables or item lists on /whats-new

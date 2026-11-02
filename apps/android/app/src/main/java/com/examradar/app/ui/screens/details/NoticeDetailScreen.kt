@@ -35,10 +35,11 @@ import com.examradar.app.data.repository.ExamRadarRepository
 import com.examradar.app.ui.components.*
 import com.examradar.app.ui.theme.*
 import com.examradar.app.data.model.NoticeVersionModel
+import com.examradar.app.util.CalendarSyncHelper
 import com.examradar.app.util.CustomTabsHelper
 import com.examradar.app.util.DateFormatter
 import com.examradar.app.util.NoticePdfManager
-import com.examradar.app.util.CalendarSyncHelper
+import com.examradar.app.util.ShareHelper
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -152,9 +153,18 @@ fun NoticeDetailScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+    var showShareSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.notice?.id) {
         viewModel.checkPdfCache(context)
+    }
+
+    if (showShareSheet && uiState.notice != null) {
+        StudyCircleShareSheet(
+            title = "Share Official Notice",
+            shareText = ShareHelper.formatNoticeShareCard(uiState.notice!!),
+            onDismiss = { showShareSheet = false }
+        )
     }
 
     Scaffold(
@@ -168,10 +178,10 @@ fun NoticeDetailScreen(
                 },
                 actions = {
                     uiState.notice?.let { notice ->
-                        IconButton(onClick = { shareNotice(context, notice) }) {
+                        IconButton(onClick = { showShareSheet = true }) {
                             Icon(
                                 imageVector = Icons.Default.Share,
-                                contentDescription = "Share Notice",
+                                contentDescription = "Share Notice to Study Group",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -564,7 +574,7 @@ fun NoticeDetailScreen(
                         // WhatsApp / Social Share Card for Aspirants & Study Groups
                         NoticeShareCard(
                             notice = notice,
-                            onShareClick = { shareNotice(context, notice) }
+                            onShareClick = { showShareSheet = true }
                         )
 
                         Spacer(modifier = Modifier.height(20.dp))
@@ -1266,46 +1276,8 @@ fun NoticeShareCard(
 }
 
 fun shareNotice(context: Context, notice: NoticeModel) {
-    val deadline = notice.importantDates.find { it.dateType == DateType.APPLICATION_DEADLINE }?.eventDate
-    val deadlineStr = if (deadline != null) DateFormatter.format(deadline) else "Check Official Notification"
-
-    val textBuilder = StringBuilder()
-    textBuilder.append("📢 *${notice.title}*\n")
-    textBuilder.append("🏛️ *Authority:* ${notice.organization}\n")
-    if (notice.totalVacancies != null && notice.totalVacancies > 0) {
-        val formattedVacancies = java.text.NumberFormat.getIntegerInstance(java.util.Locale("en", "IN")).format(notice.totalVacancies)
-        textBuilder.append("🔢 *Total Vacancies:* $formattedVacancies Posts\n")
-    }
-    if (!notice.payScaleSummary.isNullOrBlank()) {
-        textBuilder.append("💰 *Pay Scale:* ${notice.payScaleSummary}\n")
-    }
-    textBuilder.append("⏳ *Last Date to Apply:* $deadlineStr\n")
-    if (!notice.educationalQualification.isNullOrBlank()) {
-        textBuilder.append("🎓 *Qualification:* ${notice.educationalQualification}\n")
-    }
-    if (notice.ageMin != null && notice.ageMax != null) {
-        textBuilder.append("🎂 *Age Criteria:* ${notice.ageMin} - ${notice.ageMax} Years\n")
-    }
-    if (notice.applicationFeeGeneral != null) {
-        val feeGeneralStr = if (notice.applicationFeeGeneral == 0) "Free" else "₹${notice.applicationFeeGeneral}"
-        val feeReservedStr = if (notice.applicationFeeReserved != null) {
-            if (notice.applicationFeeReserved == 0) "Free (Exempt)" else "₹${notice.applicationFeeReserved}"
-        } else "Exempt for reserved categories"
-        textBuilder.append("💳 *Application Fee:* $feeGeneralStr (Reserved: $feeReservedStr)\n")
-    }
-    if (!notice.officialApplyUrl.isNullOrBlank()) {
-        textBuilder.append("\n🔗 *Apply Online:* ${notice.officialApplyUrl}\n")
-    }
-    textBuilder.append("📄 *Official PDF Notice:* ${notice.officialNoticeUrl}\n")
-    textBuilder.append("\n_Shared via ExamRadar India — Real-Time Govt Exam Notice Tracker_")
-
-    val sendIntent = Intent(Intent.ACTION_SEND).apply {
-        type = "text/plain"
-        putExtra(Intent.EXTRA_SUBJECT, "${notice.organization}: ${notice.examName} Notification")
-        putExtra(Intent.EXTRA_TEXT, textBuilder.toString())
-    }
-    val chooser = Intent.createChooser(sendIntent, "Share Exam Notice via...")
-    context.startActivity(chooser)
+    val shareText = ShareHelper.formatNoticeShareCard(notice)
+    ShareHelper.shareGeneric(context, shareText, "Share ${notice.organization}: ${notice.examName} Notice")
 }
 
 @Composable

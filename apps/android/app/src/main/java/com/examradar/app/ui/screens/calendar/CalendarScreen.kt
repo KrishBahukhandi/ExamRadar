@@ -11,6 +11,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.EventAvailable
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,7 +28,9 @@ import com.examradar.app.data.model.DateType
 import com.examradar.app.data.repository.ExamRadarRepository
 import com.examradar.app.ui.components.EmptyStateView
 import com.examradar.app.ui.components.LoadingStateView
+import com.examradar.app.ui.components.StudyCircleShareSheet
 import com.examradar.app.ui.theme.*
+import com.examradar.app.util.ShareHelper
 import com.examradar.app.util.DateFormatter
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -74,6 +77,15 @@ fun CalendarScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var sharingEvent by remember { mutableStateOf<CalendarEventModel?>(null) }
+
+    if (sharingEvent != null) {
+        StudyCircleShareSheet(
+            title = "Share Exam Timeline",
+            shareText = ShareHelper.formatCalendarEventShareCard(sharingEvent!!),
+            onDismiss = { sharingEvent = null }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -148,7 +160,8 @@ fun CalendarScreen(
                     ) { event ->
                         CalendarEventCard(
                             event = event,
-                            onClick = { onNoticeClick(event.noticeId) }
+                            onClick = { onNoticeClick(event.noticeId) },
+                            onShareClick = { sharingEvent = event }
                         )
                     }
                 }
@@ -161,6 +174,7 @@ fun CalendarScreen(
 fun CalendarEventCard(
     event: CalendarEventModel,
     onClick: () -> Unit,
+    onShareClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val day = remember(event.eventDate) { event.eventDate.format(DateTimeFormatter.ofPattern("dd")) }
@@ -266,6 +280,21 @@ fun CalendarEventCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+
+            // Share to Study Group Button
+            if (onShareClick != null) {
+                IconButton(
+                    onClick = onShareClick,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = "Share Timeline to Study Group",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
 
             // Sync to Phone Calendar Button

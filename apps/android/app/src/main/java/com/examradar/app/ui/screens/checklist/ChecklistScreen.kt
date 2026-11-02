@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,6 +26,8 @@ import com.examradar.app.data.model.ChecklistItemModel
 import com.examradar.app.data.model.ChecklistModel
 import com.examradar.app.data.repository.ExamRadarRepository
 import com.examradar.app.ui.components.LoadingStateView
+import com.examradar.app.ui.components.StudyCircleShareSheet
+import com.examradar.app.util.ShareHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -68,6 +71,18 @@ fun ChecklistScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var showShareSheet by remember { mutableStateOf(false) }
+
+    if (showShareSheet && uiState.checklist != null) {
+        val cl = uiState.checklist!!
+        val done = cl.items.count { it.isCompleted }
+        val total = cl.items.size
+        StudyCircleShareSheet(
+            title = "Share Checklist Progress",
+            shareText = ShareHelper.formatChecklistProgressShareCard(cl.examName, done, total),
+            onDismiss = { showShareSheet = false }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -76,6 +91,17 @@ fun ChecklistScreen(
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    if (uiState.checklist != null) {
+                        IconButton(onClick = { showShareSheet = true }) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Share Application Progress",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             )

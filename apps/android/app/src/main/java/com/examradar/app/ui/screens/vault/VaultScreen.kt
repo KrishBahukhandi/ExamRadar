@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.examradar.app.data.local.ApplicationVaultEntity
 import com.examradar.app.data.model.ExamModel
+import com.examradar.app.ui.components.StudyCircleShareSheet
 import com.examradar.app.util.VaultStorageHelper
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -56,6 +57,15 @@ fun VaultScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     var entryToDelete by remember { mutableStateOf<ApplicationVaultEntity?>(null) }
+    var sharingEntry by remember { mutableStateOf<ApplicationVaultEntity?>(null) }
+
+    if (sharingEntry != null) {
+        StudyCircleShareSheet(
+            title = "Share Application Credentials",
+            shareText = VaultStorageHelper.formatShareText(sharingEntry!!),
+            onDismiss = { sharingEntry = null }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -174,7 +184,7 @@ fun VaultScreen(
                                 onOpenPdf(path, title)
                             },
                             onShare = {
-                                shareEntryText(context, entry)
+                                sharingEntry = entry
                             },
                             onEdit = {
                                 viewModel.openEditSheet(entry)

@@ -31,6 +31,7 @@ import androidx.lifecycle.viewModelScope
 import com.examradar.app.data.model.*
 import com.examradar.app.data.repository.ExamRadarRepository
 import com.examradar.app.ui.components.*
+import com.examradar.app.util.ShareHelper
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -114,6 +115,15 @@ fun HomeScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var sharingNotice by remember { mutableStateOf<NoticeModel?>(null) }
+
+    if (sharingNotice != null) {
+        StudyCircleShareSheet(
+            title = "Share Notice to Study Group",
+            shareText = ShareHelper.formatNoticeShareCard(sharingNotice!!),
+            onDismiss = { sharingNotice = null }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -276,7 +286,8 @@ fun HomeScreen(
                             uiState.approachingDeadlines.forEach { urgentNotice ->
                                 NoticeCard(
                                     notice = urgentNotice,
-                                    onClick = { onNoticeClick(urgentNotice.id) }
+                                    onClick = { onNoticeClick(urgentNotice.id) },
+                                    onShareClick = { sharingNotice = urgentNotice }
                                 )
                                 Spacer(modifier = Modifier.height(10.dp))
                             }
@@ -343,7 +354,8 @@ fun HomeScreen(
                     ) { notice ->
                         NoticeCard(
                             notice = notice,
-                            onClick = { onNoticeClick(notice.id) }
+                            onClick = { onNoticeClick(notice.id) },
+                            onShareClick = { sharingNotice = notice }
                         )
                     }
                 }

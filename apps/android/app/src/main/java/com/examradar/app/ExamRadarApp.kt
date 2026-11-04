@@ -27,7 +27,13 @@ class ExamRadarApp : Application() {
         val prefsRepository = UserPreferencesRepository(applicationContext)
         val diskCache = OfflineDiskCache(applicationContext)
         val database = com.examradar.app.data.local.ExamRadarDatabase.getInstance(applicationContext)
-        repository = ExamRadarRepositoryImpl(prefsRepository, apiClient, diskCache = diskCache, database = database)
+        repository = ExamRadarRepositoryImpl(
+            preferencesRepository = prefsRepository,
+            apiClient = apiClient,
+            diskCache = diskCache,
+            database = database,
+            context = applicationContext
+        )
 
         // 1. Initialize Android Notification Channels
         ExamRadarNotificationManager.initNotificationChannels(this)
@@ -35,10 +41,25 @@ class ExamRadarApp : Application() {
         // 2. Schedule periodic background deadline reminder checks
         DeadlineCheckWorker.schedulePeriodicCheck(this)
 
-        // 3. Update Home Screen Countdown & Radar Widgets
+        // 3. Schedule Smart Offline Hardware Deadline Alarms (T-48h and T-24h)
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val notices = repository.getNotices().first()
+                val prefs = repository.getUserPreferences().first()
+                com.examradar.app.notification.DeadlineAlarmScheduler.scheduleAllUpcoming(
+                    context = this@ExamRadarApp,
+                    notices = notices,
+                    prefs = prefs
+                )
+            } catch (e: Exception) {
+                Log.w("ExamRadarApp", "Failed to schedule offline deadline alarms on launch: ${e.message}")
+            }
+        }
+
+        // 4. Update Home Screen Countdown & Radar Widgets
         com.examradar.app.widget.ExamRadarWidgetProvider.triggerUpdate(this)
 
-        // 4. Subscribe to all-notices broadcast topic and register FCM Push token
+        // 5. Subscribe to all-notices broadcast topic and register FCM Push token
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 FirebaseMessaging.getInstance().subscribeToTopic("notices_all")

@@ -47,11 +47,12 @@ class NotificationSettingsViewModel(
         notifyResults: Boolean = _prefs.value.notifyResults,
         r7: Boolean = _prefs.value.reminder7Days,
         r3: Boolean = _prefs.value.reminder3Days,
+        r48h: Boolean = _prefs.value.reminder48Hours,
         r1: Boolean = _prefs.value.reminder1Day,
         push: Boolean = _prefs.value.pushEnabled
     ) {
         viewModelScope.launch {
-            repository.updateNotificationPreferences(notifyNew, notifyDeadlines, notifyResults, r7, r3, r1, push)
+            repository.updateNotificationPreferences(notifyNew, notifyDeadlines, notifyResults, r7, r3, r1, push, r48h)
         }
     }
 }
@@ -184,8 +185,14 @@ fun NotificationSettingsScreen(
                 onCheckedChange = { viewModel.updateSettings(r3 = it) }
             )
             ReminderOptionRow(
-                title = "1 Day Prior (Closing Eve)",
-                description = "Final alert to prevent server slowdown rush",
+                title = "48 Hours Prior (Server Congestion Warning)",
+                description = "Offline alarm before official portals freeze under last-minute rush",
+                checked = prefs.reminder48Hours,
+                onCheckedChange = { viewModel.updateSettings(r48h = it) }
+            )
+            ReminderOptionRow(
+                title = "24 Hours Prior (Final Closing Call)",
+                description = "High-urgency offline alarm before application cutoff",
                 checked = prefs.reminder1Day,
                 onCheckedChange = { viewModel.updateSettings(r1 = it) }
             )

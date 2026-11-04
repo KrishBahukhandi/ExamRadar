@@ -4,6 +4,11 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <!-- Queries for Direct WhatsApp and Telegram Study Group Sharing -->
     <queries>
@@ -90,6 +95,28 @@
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
+
+        <!-- Smart Offline Deadline Alarms Receiver (T-48h and T-24h triggers) -->
+        <receiver
+            android:name=".notification.DeadlineAlarmReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.examradar.app.action.DEADLINE_ALARM" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Device Boot & Package Update Receiver for Rescheduling Offline Alarms -->
+        <receiver
+            android:name=".notification.DeadlineBootReceiver"
+            android:exported="true"
+            android:permission="android.permission.RECEIVE_BOOT_COMPLETED">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
 
         <!-- Secure FileProvider for In-App Cached PDF Opening & Sharing -->
         <provider

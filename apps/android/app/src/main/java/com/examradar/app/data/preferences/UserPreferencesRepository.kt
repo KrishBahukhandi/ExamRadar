@@ -24,6 +24,7 @@ data class UserPreferences(
     val notifyResults: Boolean = true,
     val reminder7Days: Boolean = true,
     val reminder3Days: Boolean = true,
+    val reminder48Hours: Boolean = true,
     val reminder1Day: Boolean = true,
     val pushEnabled: Boolean = true,
     val isLoggedIn: Boolean = false,
@@ -66,6 +67,7 @@ class UserPreferencesRepository(private val context: Context) {
         val NOTIFY_RESULTS = booleanPreferencesKey("notify_results")
         val REMINDER_7D = booleanPreferencesKey("reminder_7d")
         val REMINDER_3D = booleanPreferencesKey("reminder_3d")
+        val REMINDER_48H = booleanPreferencesKey("reminder_48h")
         val REMINDER_1D = booleanPreferencesKey("reminder_1d")
         val PUSH_ENABLED = booleanPreferencesKey("push_enabled")
         val IS_LOGGED_IN = booleanPreferencesKey("is_logged_in")
@@ -103,6 +105,7 @@ class UserPreferencesRepository(private val context: Context) {
             notifyResults = prefs[Keys.NOTIFY_RESULTS] ?: true,
             reminder7Days = prefs[Keys.REMINDER_7D] ?: true,
             reminder3Days = prefs[Keys.REMINDER_3D] ?: true,
+            reminder48Hours = prefs[Keys.REMINDER_48H] ?: true,
             reminder1Day = prefs[Keys.REMINDER_1D] ?: true,
             pushEnabled = prefs[Keys.PUSH_ENABLED] ?: true,
             isLoggedIn = prefs[Keys.IS_LOGGED_IN] ?: false,
@@ -177,7 +180,8 @@ class UserPreferencesRepository(private val context: Context) {
         r7: Boolean,
         r3: Boolean,
         r1: Boolean,
-        push: Boolean
+        push: Boolean,
+        r48h: Boolean = true
     ) {
         context.dataStore.edit { prefs ->
             prefs[Keys.NOTIFY_NEW_NOTICES] = notifyNew
@@ -185,6 +189,7 @@ class UserPreferencesRepository(private val context: Context) {
             prefs[Keys.NOTIFY_RESULTS] = notifyResults
             prefs[Keys.REMINDER_7D] = r7
             prefs[Keys.REMINDER_3D] = r3
+            prefs[Keys.REMINDER_48H] = r48h
             prefs[Keys.REMINDER_1D] = r1
             prefs[Keys.PUSH_ENABLED] = push
         }

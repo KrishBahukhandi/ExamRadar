@@ -1,5 +1,6 @@
 package com.examradar.app.data.repository
 
+import android.content.Context
 import android.util.Log
 import com.examradar.app.data.local.*
 import com.examradar.app.data.cache.OfflineDiskCache
@@ -9,6 +10,7 @@ import com.examradar.app.data.preferences.UserPreferences
 import com.examradar.app.data.preferences.UserPreferencesRepository
 import com.examradar.app.data.remote.ExamRadarApiClient
 import com.examradar.app.data.remote.UserPreferencesRemoteDto
+import com.examradar.app.notification.DeadlineAlarmScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -59,7 +61,8 @@ interface UserPreferencesDomainRepository {
         r7: Boolean,
         r3: Boolean,
         r1: Boolean,
-        push: Boolean
+        push: Boolean,
+        r48h: Boolean = true
     )
     suspend fun resetAllUserData()
 }
@@ -106,7 +109,8 @@ class ExamRadarRepositoryImpl(
     private val apiClient: ExamRadarApiClient = ExamRadarApiClient(),
     private val authService: com.examradar.app.data.remote.SupabaseAuthService = com.examradar.app.data.remote.SupabaseAuthService(),
     private val diskCache: OfflineDiskCache? = null,
-    private val database: ExamRadarDatabase? = null
+    private val database: ExamRadarDatabase? = null,
+    private val context: Context? = null
 ) : ExamRadarRepository {
 
     private val liveCategories = MutableStateFlow<List<CategoryModel>>(
@@ -118,6 +122,19 @@ class ExamRadarRepositoryImpl(
     private val liveNotices = MutableStateFlow<List<NoticeModel>>(
         diskCache?.loadNotices()?.takeIf { it.isNotEmpty() } ?: DevelopmentNoticeFixtures.sampleNotices
     )
+
+    private fun syncDeadlineAlarms() {
+        val ctx = context ?: return
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val notices = liveNotices.value
+                val prefs = preferencesRepository.userPreferences.first()
+                DeadlineAlarmScheduler.scheduleAllUpcoming(ctx, notices, prefs)
+            } catch (e: Exception) {
+                Log.w("ExamRadarRepo", "Failed to sync deadline alarms: ${e.message}")
+            }
+        }
+    }
 
     init {
         CoroutineScope(Dispatchers.IO).launch {
@@ -139,6 +156,7 @@ class ExamRadarRepositoryImpl(
                 }
             }
             refreshNotices()
+            syncDeadlineAlarms()
         }
     }
 
@@ -169,6 +187,9 @@ class ExamRadarRepositoryImpl(
                 database?.noticeDao()?.insertNotices(remote.map { it.toEntity() })
                 anySuccess = true
             }
+            if (anySuccess) {
+                syncDeadlineAlarms()
+            }
             anySuccess
         }
 
@@ -181,11 +202,15 @@ class ExamRadarRepositoryImpl(
     override suspend fun updateFollowedCategories(categories: Set<String>) =
         preferencesRepository.updateFollowedCategories(categories)
 
-    override suspend fun updateFollowedExams(exams: Set<String>) =
+    override suspend fun updateFollowedExams(exams: Set<String>) {
         preferencesRepository.updateFollowedExams(exams)
+        syncDeadlineAlarms()
+    }
 
-    override suspend fun toggleFollowExam(examId: String) =
+    override suspend fun toggleFollowExam(examId: String) {
         preferencesRepository.toggleFollowExam(examId)
+        syncDeadlineAlarms()
+    }
 
     override suspend fun updateProfile(educationLevel: String, graduationStatus: String, graduationYear: Int) =
         preferencesRepository.updateProfile(educationLevel, graduationStatus, graduationYear)
@@ -197,10 +222,14 @@ class ExamRadarRepositoryImpl(
         r7: Boolean,
         r3: Boolean,
         r1: Boolean,
-        push: Boolean
-    ) = preferencesRepository.updateNotificationPreferences(
-        notifyNew, notifyDeadlines, notifyResults, r7, r3, r1, push
-    )
+        push: Boolean,
+        r48h: Boolean
+    ) {
+        preferencesRepository.updateNotificationPreferences(
+            notifyNew, notifyDeadlines, notifyResults, r7, r3, r1, push, r48h
+        )
+        syncDeadlineAlarms()
+    }
 
     override suspend fun resetAllUserData() {
         val token = getValidAuthToken()
